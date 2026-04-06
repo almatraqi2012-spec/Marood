@@ -1,4 +1,5 @@
 import logging
+import os
 from pymongo import MongoClient
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
@@ -10,14 +11,17 @@ logger = logging.getLogger(__name__)
 # ================= [ ⚙️ إعدادات الإمبراطور ] =================
 TOKEN = '7885071515:AAEzZkVzA4iHcvn5GG9AXCsJTS2gIa-9UTc'
 ADMIN_USERNAME = 'HCICICVICIF9'
-MY_PERSONAL_ID = 6016547718
 
-# رابط المونغو الخاص بك (تم دمجه وتحديثه للعمل السحابي)
+# قائمة المديرين (أضف معرفاتك ومعرفات شركائك هنا)
+ADMINS_LIST = [6016547718] # يمكنك إضافة المزيد مثل: [6016547718, 12345678]
+
+# رابط المونغو الخاص بك
 MONGO_URI = "mongodb://alkreem12:Abn-alkreem12@cluster0-shard-00-00.p8iub.mongodb.net:27017,cluster0-shard-00-01.p8iub.mongodb.net:27017,cluster0-shard-00-02.p8iub.mongodb.net:27017/?tls=true&replicaSet=atlas-x13k9w-shard-0&authSource=admin&retryWrites=true&w=majority&appName=Cluster0"
 
 BANK_ACCOUNT = "SA0000000000000000000000"
 CRYPTO_WALLET = "TLtLuhkU2kkkR1Wz1TtrBTpoNRTNviYpsA"
 
+# مبالغ الاستثمار المحدثة (صفين)
 PRICES_SAR = ["1000", "1500", "2000", "3000", "5000", "7000", "8000", "10000", "15000", "20000", "30000", "50000"]
 PRICES_USD = ["300", "400", "500", "600", "800", "1000", "2000", "3000", "5000", "20000", "30000"]
 # ===============================================================
@@ -108,20 +112,29 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         addr = BANK_ACCOUNT if c_type == 'sr' else CRYPTO_WALLET
         await query.edit_message_text(f"✅ تم اختيار {amt}\nحول إلى:\n`{addr}`\n\n📸 أرسل الإيصال هنا.", parse_mode='Markdown')
 
-    elif data.startswith('ok_'):
-        _, c, a, target = data.split('_')
-        update_balance(int(target), c, float(a))
-        await query.answer(f"✅ تمت إضافة {a} {c}", show_alert=True)
-        try:
-            await context.bot.send_message(chat_id=int(target), text=f"🎉 تم إيداع `{a}` {c} في محفظتك بنجاح!")
-        except: pass
+    # --- 🛠️ معالجة أوامر المديرين (تأكيد/رفض) ---
+    elif data.startswith('ok_') or data.startswith('no_'):
+        if uid not in ADMINS_LIST:
+            await query.answer("❌ عذراً، هذا الزر للمديرين فقط!", show_alert=True)
+            return
 
-    elif data.startswith('no_'):
-        t = data.split('_')[1]
-        await query.answer("❌ تم الرفض")
-        try:
-            await context.bot.send_message(chat_id=int(t), text="❌ تم رفض الإيصال من قبل الإدارة.")
-        except: pass
+        if data.startswith('ok_'):
+            _, c, a, target = data.split('_')
+            update_balance(int(target), c, float(a))
+            await query.answer(f"✅ تمت إضافة {a} {c}", show_alert=True)
+            # مسح الرسالة عند جميع المديرين لعدم التكرار
+            await query.edit_message_caption(caption=f"✅ تم تأكيد الإيداع بمبلغ {a} {c} بواسطة أحد المديرين.")
+            try:
+                await context.bot.send_message(chat_id=int(target), text=f"🎉 تم إيداع `{a}` {c} في محفظتك بنجاح!")
+            except: pass
+        
+        elif data.startswith('no_'):
+            t = data.split('_')[1]
+            await query.answer("❌ تم الرفض")
+            await query.edit_message_caption(caption="❌ تم رفض هذا الإيصال من قبل أحد المديرين.")
+            try:
+                await context.bot.send_message(chat_id=int(t), text="❌ تم رفض الإيصال من قبل الإدارة.")
+            except: pass
 
 async def handle_receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.photo:
@@ -137,7 +150,13 @@ async def handle_receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("❌ رفض الإيصال", callback_data=f"no_{user.id}")]
         ]
         cap = f"🔔 **لوحة المالك**\nالاسم: {user.first_name}\nID: `{user.id}`\n\nاختر المبلغ المراد إضافته:"
-        await context.bot.send_photo(chat_id=MY_PERSONAL_ID, photo=update.message.photo[-1].file_id, caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+        
+        # إرسال الإيصال لجميع المديرين في القائمة
+        for admin_id in ADMINS_LIST:
+            try:
+                await context.bot.send_photo(chat_id=admin_id, photo=update.message.photo[-1].file_id, caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+            except Exception as e:
+                logger.error(f"فشل الإرسال للمدير {admin_id}: {e}")
 
 if __name__ == '__main__':
     # تشغيل البوت بنظام المعالجة المتوازية للسرعة القصوى
@@ -147,5 +166,5 @@ if __name__ == '__main__':
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.PHOTO, handle_receipt))
     
-    logger.info("🚀 المنصة تعمل بنظام المونغو السحابي والمبالغ الكاملة...")
+    logger.info("🚀 المنصة تعمل بنظام الإدارة المشتركة والمونغو السحابي...")
     app.run_polling(drop_pending_updates=True)
