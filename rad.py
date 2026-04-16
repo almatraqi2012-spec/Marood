@@ -34,39 +34,46 @@ try:
 except Exception as e:
     logger.error(f"❌ فشل الاتصال بالمونغو: {e}")
 
+# استبدل دالة get_user_data بهذا التعديل لضمان عدم التعليق:
 def get_user_data(uid):
-    user = users_col.find_one({"uid": uid})
-    if not user:
-        user = {"uid": uid, "bal_sar": 0.0, "bal_usd": 0.0}
-        users_col.insert_one(user)
-    return user
+    try:
+        user = users_col.find_one({"uid": uid})
+        if not user:
+            user = {"uid": uid, "bal_sar": 0.0, "bal_usd": 0.0}
+            users_col.insert_one(user)
+            logger.info(f"🆕 تم إنشاء بروفايل جديد للمستخدم: {uid}")
+        return user
+    except Exception as e:
+        logger.error(f"❌ خطأ في جلب بيانات المستخدم: {e}")
+        # إرجاع بيانات افتراضية في حال فشل المونغو مؤقتاً لكي لا يتوقف البوت
+        return {"uid": uid, "bal_sar": 0.0, "bal_usd": 0.0}
 
-def update_balance(uid, curr, amt):
-    field = "bal_sar" if curr == "sr" else "bal_usd"
-    users_col.update_one({"uid": uid}, {"$inc": {field: float(amt)}})
-
-# --- 🏠 واجهة المستخدم ---
+# استبدل دالة start بهذا التعديل (أضفنا Try/Except للضمان):
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    get_user_data(user.id)
-    
-    keyboard = [
-        [InlineKeyboardButton("🇸🇦 استثمار (بالريال السعودي)", callback_data='c_sr'), 
-         InlineKeyboardButton("🇺🇸 استثمار (بالدولار)", callback_data='c_us')],
-        [InlineKeyboardButton("💰 محفظتي المالية", callback_data='wallet')],
-        [InlineKeyboardButton("📤 طلب سحب الأرباح", callback_data='withdraw')],
-        [InlineKeyboardButton("💬 التواصل مع الإدارة", url=f"https://t.me/{ADMIN_USERNAME}")]
-    ]
-    
-    text = (f"🏦 **المنصة العالمية للاستثمار**\n\n"
-            f"مرحباً بك سيد {user.first_name}\n"
-            f"يرجى ارسال بياناتك هنا ثم اختر القسم المطلوب للبدء:")
-    
-    if update.message:
-        await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
-    else:
-        await update.callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
-
+    try:
+        user = update.effective_user
+        # جلب البيانات أو إنشاؤها
+        get_user_data(user.id)
+        
+        keyboard = [
+            [InlineKeyboardButton("🇸🇦 استثمار (بالريال السعودي)", callback_data='c_sr'), 
+             InlineKeyboardButton("🇺🇸 استثمار (بالدولار)", callback_data='c_us')],
+            [InlineKeyboardButton("💰 محفظتي المالية", callback_data='wallet')],
+            [InlineKeyboardButton("📤 طلب سحب الأرباح", callback_data='withdraw')],
+            [InlineKeyboardButton("💬 التواصل مع الإدارة", url=f"https://t.me/{ADMIN_USERNAME}")]
+        ]
+        
+        text = (f"🏦 **المنصة العالمية للاستثمار**\n\n"
+                f"مرحباً بك سيد {user.first_name}\n"
+                f"يرجى اختيار القسم المطلوب للبدء:")
+        
+        if update.message:
+            await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+        elif update.callback_query:
+            await update.callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+            
+    except Exception as e:
+        logger.error(f"💥 خطأ في تنفيذ أمر start: {e}")
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     data = query.data
