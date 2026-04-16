@@ -8,7 +8,7 @@ from telegram.ext import Application, CommandHandler, CallbackQueryHandler, Mess
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# ================= [ ⚙️ إعدادات الإمبراطور ] =================
+# ================= [ ⚙️ إعدادات الإمبراطور ] ================
 TOKEN = '7885071515:AAEzZkVzA4iHcvn5GG9AXCsJTS2gIa-9UTc'
 ADMIN_USERNAME = 'HCICICVICIF9'
 
