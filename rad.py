@@ -16,8 +16,7 @@ ADMIN_USERNAME = 'HCICICVICIF9'
 ADMINS_LIST = [6016547718] # يمكنك إضافة المزيد مثل: [6016547718, 12345678]
 
 # رابط المونغو الخاص بك
-MONGO_URI = "mongodb://alkreem12:Abn-alkreem12@cluster0-shard-00-00.p8iub.mongodb.net:27017,cluster0-shard-00-01.p8iub.mongodb.net:27017,cluster0-shard-00-02.p8iub.mongodb.net:27017/?tls=true&replicaSet=atlas-x13k9w-shard-0&authSource=admin&retryWrites=true&w=majority&appName=Cluster0"
-
+MONGO_URI = "mongodb+srv://Abduh:5D7NJi%25aAAkdRB@cluster0.p8iub.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
 BANK_ACCOUNT = "SA0000000000000000000000"
 CRYPTO_WALLET = "TLtLuhkU2kkkR1Wz1TtrBTpoNRTNviYpsA"
 
