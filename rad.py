@@ -9,7 +9,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 # ================= [ ⚙️ إعدادات الإمبراطور ] ================
-TOKEN = '7885071515:AAEzZkVzA4iHcvn5GG9AXCsJTS2gIa-9UTc'
+TOKEN ='7885071515:AAEzZkVzA4iHcvn5GG9AXCsJTS2gIa-9UTc'
 ADMIN_USERNAME = 'HCICICVICIF9'
 
 # قائمة المديرين (أضف معرفاتك ومعرفات شركائك هنا)
