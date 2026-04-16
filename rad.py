@@ -80,7 +80,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         text = (f"🏦 **المنصة العالمية للاستثمار**\n\n"
                 f"مرحباً بك سيد {user.first_name}\n"
-                f"يرجى اختيار القسم المطلوب للبدء:")
+                f"يرجى إرسال بياناتك هنا ثم اختيار الفئه الاستثماريه المناسبه لك للبدء:")
         
         if update.message:
             await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
