@@ -27,7 +27,7 @@ PRICES_USD = ["300", "400", "500", "600", "800", "1000", "2000", "3000", "5000",
 
 # --- 🗄️ الاتصال بقاعدة بيانات MongoDB ---
 try:
-    client = MongoClient(MONGO_URI)
+    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000, connectTimeoutMS=5000)
     db = client['investment_platform']
     users_col = db['users']
     logger.info("✅ تم الاتصال بسحابة MongoDB بنجاح")
