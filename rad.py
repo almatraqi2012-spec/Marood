@@ -1,3 +1,18 @@
+from flask import Flask
+from threading import Thread
+
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "البوت يعمل بنجاح!"
+
+def run():
+    app.run(host='0.0.0.0', port=8080)
+
+def keep_alive():
+    t = Thread(target=run)
+    t.start()
 import logging
 import os
 from pymongo import MongoClient
@@ -173,4 +188,8 @@ if __name__ == '__main__':
     app.add_handler(MessageHandler(filters.PHOTO, handle_receipt))
     
     logger.info("🚀 المنصة تعمل بنظام الإدارة المشتركة والمونغو السحابي...")
+    app.run_polling(drop_pending_updates=True)
+    logger.info("🚀 تشغيل السيرفر الوهمي للحفاظ على اتصال Render...")
+    keep_alive() # هذا السطر هو السر!
+    
     app.run_polling(drop_pending_updates=True)
