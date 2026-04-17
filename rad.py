@@ -167,13 +167,22 @@ async def handle_receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 parse_mode='Markdown'
             )
 
-# --- 🚀 6. تشغيل المحرك ---
+# --- 🚀 6. تشغيل المحرك النهائي ---
 if __name__ == '__main__':
     keep_alive()
+    
+    # بناء التطبيق
     app = Application.builder().token(TOKEN).build()
+    
+    # إضافة المعالجات (تأكد من وجودها جميعاً)
     app.add_handler(CommandHandler('start', start))
     app.add_handler(CallbackQueryHandler(button_handler))
+    # هذا السطر مهم جداً لاستقبال الصور
     app.add_handler(MessageHandler(filters.PHOTO, handle_receipt))
+    # هذا السطر لاستقبال أي رسالة نصية غير معروفة (للتجربة)
+    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), start)) 
+
+    logger.info("🐉 الدراجون مستعد للتحليق...")
     
-    logger.info("🐉 الدراجون مستعد للتحليق بالرابط الحقيقي...")
-    app.run_polling(drop_pending_updates=True)
+    # استخدام سطر تشغيل قوي يجبر التلجرام على البدء من اللحظة الحالية
+    app.run_polling(drop_pending_updates=True, close_loop=False)
