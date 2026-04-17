@@ -37,21 +37,31 @@ CRYPTO_WALLET = "TLtLuhkU2kkkR1Wz1TtrBTpoNRTNviYpsA"
 PRICES_SAR = ["1000", "1500", "2000", "3000", "5000", "7000", "8000", "10000", "15000", "20000", "30000", "50000"]
 PRICES_USD = ["300", "400", "500", "600", "800", "1000", "2000", "3000", "5000", "20000", "30000"]
 
-# --- 🗄️ 3. الاتصال بالقاعدة (تعريف خارجي لمنع NameError) ---
+# --- 🗄️ 3. الاتصال بالقاعدة (النسخة الاحترافية المضادة للأخطاء) ---
+# تعريف خارجي لضمان عدم حدوث NameError في أي مكان بالبوت
 users_col = None
 
+# الرابط المعتمد بناءً على صلاحيات الإدمن الخاصة بك (اتصال مباشر)
+MONGO_URI = "mongodb://Abduh:5D7NJi%25aAAkdRB@cluster0-shard-00-00.p8iub.mongodb.net:27017,cluster0-shard-00-01.p8iub.mongodb.net:27017,cluster0-shard-00-02.p8iub.mongodb.net:27017/investment_platform?ssl=true&replicaSet=atlas-p8iub-shard-0&authSource=admin&retryWrites=true&w=majority"
+
 try:
-    # إعدادات اتصال قوية ضد انقطاع الشبكة في Render
-    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=10000, connectTimeoutMS=10000)
+    # إعدادات احترافية لتجاوز تعليق الشبكة في رندر وتجاهل مشاكل الـ DNS
+    client = MongoClient(
+        MONGO_URI,
+        connectTimeoutMS=30000, 
+        serverSelectionTimeoutMS=30000,
+        maxPoolSize=1, 
+        tlsAllowInvalidCertificates=True
+    )
     db = client['investment_platform']
     users_col = db['users']
-    # اختبار الاتصال
+    
+    # اختبار الاتصال الفعلي بصلاحيات الإدمن
     client.admin.command('ping')
-    logger.info("✅ تم اختراق جدار DNS والاتصال بالمونغو بنجاح!")
+    logger.info("✅ تم الاتصال بنجاح ساحق بصلاحيات الإدمن!")
 except Exception as e:
-    logger.error(f"❌ خطأ في الاتصال بالقاعدة: {e}")
-    # إذا فشل الاتصال، لا نغلق البرنامج بل نحاول لاحقاً
-
+    logger.error(f"❌ القاعدة لا تزال تقاوم، لكننا أعددنا المتغيرات: {e}")
+    # حتى لو فشل اختبار الـ ping، سيستمر البوت في المحاولة عند الحاجة
 # --- 🛠️ 4. الدوال الأساسية ---
 def get_user_data(uid):
     if users_col is None: return {"uid": int(uid), "bal_sar": 0.0, "bal_usd": 0.0}
