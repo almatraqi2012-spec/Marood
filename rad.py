@@ -28,8 +28,8 @@ TOKEN ='7885071515:AAEOsslD3q5Xu-RYDT-E1sLAFggv4TS46bw'
 ADMIN_USERNAME = 'HCICICVICIF9'
 ADMINS_LIST = [6016547718] 
 
-# 💡 حل مشكلة DNS: تم تحويل الرابط لصيغة الاتصال المباشر بالعقد (Direct Connection)
-MONGO_URI = "mongodb://Abduh:5D7NJi%25aAAkdRB@cluster0-shard-00-00.p8iub.mongodb.net:27017,cluster0-shard-00-01.p8iub.mongodb.net:27017,cluster0-shard-00-02.p8iub.mongodb.net:27017/investment_platform?ssl=true&replicaSet=atlas-p8iub-shard-0&authSource=admin&retryWrites=true&w=majority"
+# الرابط الكلاسيكي (بدون srv وبدون تعقيدات DNS)
+MONGO_URI = "mongodb://Abduh:5D7NJi%25aAAkdRB@cluster0-shard-00-00.p8iub.mongodb.net:27017,cluster0-shard-00-01.p8iub.mongodb.net:27017,cluster0-shard-00-02.p8iub.mongodb.net:27017/investment_platform?ssl=true&replicaSet=atlas-p8iub-shard-0&authSource=admin"
 
 BANK_ACCOUNT = "SA0000000000000000000000"
 CRYPTO_WALLET = "TLtLuhkU2kkkR1Wz1TtrBTpoNRTNviYpsA"
