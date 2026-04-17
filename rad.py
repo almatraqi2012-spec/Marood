@@ -1,12 +1,11 @@
 from flask import Flask
 from threading import Thread
 import logging
-import os
 from pymongo import MongoClient
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 
-# --- 🌐 1. سيرفر Flask الوهمي (لمنع توقف Render) ---
+# --- 🌐 1. سيرفر Flask ---
 flask_app = Flask('')
 @flask_app.route('/')
 def home(): return "البوت يعمل بنجاح!"
@@ -19,11 +18,10 @@ def keep_alive():
     t.daemon = True
     t.start()
 
-# --- ⚙️ 2. إعدادات السجلات ---
+# --- ⚙️ 2. الإعدادات ---
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# ================= [ ⚙️ إعدادات الإمبراطور ] ================
 TOKEN ='7885071515:AAEzZkVzA4iHcvn5GG9AXCsJTS2gIa-9UTc'
 ADMIN_USERNAME = 'HCICICVICIF9'
 ADMINS_LIST = [6016547718] 
@@ -34,22 +32,20 @@ CRYPTO_WALLET = "TLtLuhkU2kkkR1Wz1TtrBTpoNRTNviYpsA"
 
 PRICES_SAR = ["1000", "1500", "2000", "3000", "5000", "7000", "8000", "10000", "15000", "20000", "30000", "50000"]
 PRICES_USD = ["300", "400", "500", "600", "800", "1000", "2000", "3000", "5000", "20000", "30000"]
-# ===============================================================
 
-# --- 🗄️ 3. الاتصال بقاعدة بيانات MongoDB ---
+# --- 🗄️ 3. المونغو ---
 users_col = None
 try:
     client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
     db = client['investment_platform']
     users_col = db['users']
-    client.admin.command('ping')
-    logger.info("✅ تم الاتصال بسحابة MongoDB")
+    logger.info("✅ متصل بالمونغو")
 except Exception as e:
     logger.error(f"❌ فشل المونغو: {e}")
 
 # --- 🛠️ 4. الدوال المساعدة ---
 def get_user_data(uid):
-    if users_col is None: return {"uid": uid, "bal_sar": 0.0, "bal_usd": 0.0}
+    if users_col is None: return None
     user = users_col.find_one({"uid": int(uid)})
     if not user:
         user = {"uid": int(uid), "bal_sar": 0.0, "bal_usd": 0.0}
@@ -57,15 +53,18 @@ def get_user_data(uid):
     return user
 
 def update_balance(uid, curr, amt):
-    """هذه الدالة التي كانت تنقصك لتشغيل الأزرار"""
     if users_col is None: return False
-    field = "bal_sar" if curr == "sr" else "bal_usd"
+    # توحيد مسميات العملات لضمان المطابقة
+    field = "bal_sar" if curr in ["sr", "sar"] else "bal_usd"
     try:
+        # استخدام $inc لزيادة الرصيد مباشرة
         users_col.update_one({"uid": int(uid)}, {"$inc": {field: float(amt)}})
         return True
-    except: return False
+    except Exception as e:
+        logger.error(f"خطأ تحديث الرصيد: {e}")
+        return False
 
-# --- 🏠 5. الأوامر والواجهات ---
+# --- 🏠 5. الواجهات ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     get_user_data(user.id)
@@ -102,43 +101,47 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         addr = BANK_ACCOUNT if curr == 'sr' else CRYPTO_WALLET
         await query.edit_message_text(f"✅ اخترت {amt}\nحول إلى:\n`{addr}`\n\n📸 أرسل الإيصال هنا.", parse_mode='Markdown')
 
-    # --- 🛠️ معالجة أزرار المالك (هنا مربط الفرس) ---
+    # --- 🛠️ معالجة أزرار المالك ---
     elif data.startswith(('ok_', 'no_')):
         if uid not in ADMINS_LIST: return
         parts = data.split('_')
+        
         if data.startswith('ok_') and len(parts) == 4:
             _, curr, amt, target = parts
             if update_balance(target, curr, amt):
-                await query.edit_message_caption(caption=f"✅ تم تأكيد إيداع {amt} {curr}")
-                try: await context.bot.send_message(chat_id=int(target), text=f"🎉 تم إضافة {amt} {curr} لمحفظتك!")
+                await query.edit_message_caption(caption=f"✅ تم بنجاح إضافة {amt} {curr} للمستثمر.")
+                try: 
+                    await context.bot.send_message(chat_id=int(target), text=f"🎉 **مبروك!** تم تأكيد إيداعك بمبلغ `{amt}` {curr}.\nرصيدك الآن محدث في المحفظة. 🚀", parse_mode='Markdown')
                 except: pass
+            else:
+                await query.answer("❌ فشل التحديث في قاعدة البيانات", show_alert=True)
+                
         elif data.startswith('no_'):
-            await query.edit_message_caption(caption="❌ تم رفض الإيصال.")
+            await query.edit_message_caption(caption="❌ تم رفض الإيصال من قبل الإدارة.")
 
 async def handle_receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.photo:
         user = update.effective_user
         await update.message.reply_text("⏳ جاري المراجعة من قبل الإدارة...")
         
-        # بناء لوحة أزرار المالك الكبيرة
         kb = []
-        for p in PRICES_SAR: kb.append([InlineKeyboardButton(f"🇸🇦 إضافة {p} ريال", callback_data=f"ok_sr_{p}_{user.id}")])
-        for p in PRICES_USD: kb.append([InlineKeyboardButton(f"💵 إضافة {p} $", callback_data=f"ok_us_{p}_{user.id}")])
-        kb.append([InlineKeyboardButton("❌ رفض", callback_data=f"no_{user.id}")])
+        # التأكد من صحة الـ callback_data في أزرار المالك
+        for p in PRICES_SAR: 
+            kb.append([InlineKeyboardButton(f"🇸🇦 إضافة {p} ريال", callback_data=f"ok_sr_{p}_{user.id}")])
+        for p in PRICES_USD: 
+            kb.append([InlineKeyboardButton(f"💵 إضافة {p} $", callback_data=f"ok_us_{p}_{user.id}")])
+        
+        kb.append([InlineKeyboardButton("❌ رفض الإيصال", callback_data=f"no_{user.id}")])
         
         for admin in ADMINS_LIST:
             await context.bot.send_photo(chat_id=admin, photo=update.message.photo[-1].file_id, 
-                                       caption=f"🔔 إيصال من: {user.first_name}\nID: `{user.id}`", 
+                                       caption=f"🔔 إيصال من: {user.first_name}\nID: `{user.id}`\n\nاختر المبلغ للإضافة:", 
                                        reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
 
-# --- 🚀 6. تشغيل المحرك ---
 if __name__ == '__main__':
-    keep_alive() # تشغيل السيرفر الوهمي أولاً
+    keep_alive()
     app = Application.builder().token(TOKEN).concurrent_updates(True).build()
-    
     app.add_handler(CommandHandler('start', start))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.PHOTO, handle_receipt))
-    
-    logger.info("🚀 إمبراطورية الدراجون تعمل الآن...")
     app.run_polling(drop_pending_updates=True)
