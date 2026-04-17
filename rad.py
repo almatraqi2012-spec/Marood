@@ -6,18 +6,20 @@ from pymongo import MongoClient
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 
-# --- 🌐 تشغيل السيرفر الوهمي للبقاء حياً على Render ---
+# --- 🌐 1. سيرفر Flask الوهمي (لمنع توقف Render) ---
 flask_app = Flask('')
 @flask_app.route('/')
-def home(): return "الدراجون يعمل بنجاح!"
+def home(): return "البوت يعمل بنجاح!"
 
-def run_flask(): flask_app.run(host='0.0.0.0', port=8080)
+def run_flask():
+    flask_app.run(host='0.0.0.0', port=8080)
+
 def keep_alive():
     t = Thread(target=run_flask)
     t.daemon = True
     t.start()
 
-# --- ⚙️ الإعدادات العامة ---
+# --- ⚙️ 2. إعدادات السجلات ---
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -30,51 +32,49 @@ MONGO_URI = "mongodb+srv://Abduh:5D7NJi%25aAAkdRB@cluster0.p8iub.mongodb.net/?re
 BANK_ACCOUNT = "SA0000000000000000000000"
 CRYPTO_WALLET = "TLtLuhkU2kkkR1Wz1TtrBTpoNRTNviYpsA"
 
-# القوائم التي سيتم صنع الأزرار منها آلياً
 PRICES_SAR = ["1000", "1500", "2000", "3000", "5000", "7000", "8000", "10000", "15000", "20000", "30000", "50000"]
 PRICES_USD = ["300", "400", "500", "600", "800", "1000", "2000", "3000", "5000", "20000", "30000"]
 # ===============================================================
 
-# --- 🗄️ الاتصال بـ MongoDB ---
-# --- 🗄️ تعريف قاعدة البيانات (خارج الـ try لضمان وجودها) ---
-db = None
+# --- 🗄️ 3. الاتصال بقاعدة بيانات MongoDB ---
 users_col = None
-
 try:
-    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000, connectTimeoutMS=5000)
+    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
     db = client['investment_platform']
     users_col = db['users']
-    # اختبار الاتصال
     client.admin.command('ping')
-    logger.info("✅ تم الاتصال بسحابة MongoDB بنجاح")
+    logger.info("✅ تم الاتصال بسحابة MongoDB")
 except Exception as e:
-    logger.error(f"❌ فشل الاتصال بالمونغو: {e}")
-# --- 🛠️ الدوال البرمجية ---
+    logger.error(f"❌ فشل المونغو: {e}")
+
+# --- 🛠️ 4. الدوال المساعدة ---
 def get_user_data(uid):
-    # التأكد أن المتغير موجود قبل استخدامه
-    if users_col is None:
-        logger.error("⚠️ قاعدة البيانات غير متصلة حالياً!")
-        return {"uid": uid, "bal_sar": 0.0, "bal_usd": 0.0}
-    
+    if users_col is None: return {"uid": uid, "bal_sar": 0.0, "bal_usd": 0.0}
+    user = users_col.find_one({"uid": int(uid)})
+    if not user:
+        user = {"uid": int(uid), "bal_sar": 0.0, "bal_usd": 0.0}
+        users_col.insert_one(user)
+    return user
+
+def update_balance(uid, curr, amt):
+    """هذه الدالة التي كانت تنقصك لتشغيل الأزرار"""
+    if users_col is None: return False
+    field = "bal_sar" if curr == "sr" else "bal_usd"
     try:
-        user = users_col.find_one({"uid": uid})
-        if not user:
-            user = {"uid": uid, "bal_sar": 0.0, "bal_usd": 0.0}
-            users_col.insert_one(user)
-        return user
-    except Exception as e:
-        logger.error(f"❌ خطأ في الاستعلام: {e}")
-        return {"uid": uid, "bal_sar": 0.0, "bal_usd": 0.0}
-# --- 🏠 الواجهات ---
+        users_col.update_one({"uid": int(uid)}, {"$inc": {field: float(amt)}})
+        return True
+    except: return False
+
+# --- 🏠 5. الأوامر والواجهات ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     get_user_data(user.id)
     kb = [
         [InlineKeyboardButton("🇸🇦 ريال سعودي", callback_data='c_sr'), InlineKeyboardButton("🇺🇸 دولار أمريكي", callback_data='c_us')],
         [InlineKeyboardButton("💰 محفظتي", callback_data='wallet'), InlineKeyboardButton("📤 سحب الأرباح", callback_data='withdraw')],
-        [InlineKeyboardButton("💬 الدعم الفني", url=f"https://t.me/{ADMIN_USERNAME}")]
+        [InlineKeyboardButton("💬 التواصل مع الإدارة", url=f"https://t.me/{ADMIN_USERNAME}")]
     ]
-    text = f"🏦 **مرحباً بك في المنصة العالمية**\n\nسيد {user.first_name}، اختر من القائمة للبدء:"
+    text = f"🏦 **مرحباً بك سيد {user.first_name}**\nاختر فئتك الاستثمارية للبدء:"
     if update.message: await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
     else: await update.callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
 
@@ -85,69 +85,60 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
 
     if data == 'main': await start(update, context)
-    
     elif data == 'wallet':
         u = get_user_data(uid)
-        text = f"📊 **تفاصيل محفظتك:**\n\n🇸🇦 ريال: `{u['bal_sar']:,}`\n🇺🇸 دولار: `{u['bal_usd']:,}`"
-        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 رجوع", callback_data='main')]]), parse_mode='Markdown')
-
+        text = f"📊 **محفظتك:**\n\n🇸🇦: `{u['bal_sar']:,}` ريال\n🇺🇸: `{u['bal_usd']:,}` دولار"
+        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙", callback_data='main')]]), parse_mode='Markdown')
+    
     elif data in ['c_sr', 'c_us']:
         curr = 'sr' if data == 'c_sr' else 'us'
         prices = PRICES_SAR if curr == 'sr' else PRICES_USD
-        btns = [[InlineKeyboardButton(f"{p} {('ر.س' if curr=='sr' else '$')}", callback_data=f"select_{curr}_{p}") for p in prices[i:i+2]] for i in range(0, len(prices), 2)]
+        btns = [[InlineKeyboardButton(f"{p} {('ر.س' if curr=='sr' else '$')}", callback_data=f"sel_{curr}_{p}") for p in prices[i:i+2]] for i in range(0, len(prices), 2)]
         btns.append([InlineKeyboardButton("🔙 رجوع", callback_data='main')])
         await query.edit_message_text("🏦 اختر مبلغ الاستثمار:", reply_markup=InlineKeyboardMarkup(btns))
 
-    elif data.startswith('select_'):
+    elif data.startswith('sel_'):
         _, curr, amt = data.split('_')
         addr = BANK_ACCOUNT if curr == 'sr' else CRYPTO_WALLET
-        await query.edit_message_text(f"✅ تم اختيار {amt}\n\nحول المبلغ إلى:\n`{addr}`\n\n📸 أرسل الإيصال هنا.", parse_mode='Markdown')
+        await query.edit_message_text(f"✅ اخترت {amt}\nحول إلى:\n`{addr}`\n\n📸 أرسل الإيصال هنا.", parse_mode='Markdown')
 
+    # --- 🛠️ معالجة أزرار المالك (هنا مربط الفرس) ---
     elif data.startswith(('ok_', 'no_')):
         if uid not in ADMINS_LIST: return
-        try:
-            if data.startswith('ok_'):
-                _, curr, amt, target = data.split('_')
-                update_balance(int(target), curr, amt)
-                await query.edit_message_caption(caption=f"✅ تم تأكيد إيداع {amt} {curr} بنجاح.")
-                try: await context.bot.send_message(chat_id=int(target), text=f"🎉 تم إضافة `{amt}` {curr} لمحفظتك!")
+        parts = data.split('_')
+        if data.startswith('ok_') and len(parts) == 4:
+            _, curr, amt, target = parts
+            if update_balance(target, curr, amt):
+                await query.edit_message_caption(caption=f"✅ تم تأكيد إيداع {amt} {curr}")
+                try: await context.bot.send_message(chat_id=int(target), text=f"🎉 تم إضافة {amt} {curr} لمحفظتك!")
                 except: pass
-            elif data.startswith('no_'):
-                await query.edit_message_caption(caption="❌ تم رفض هذا الإيصال.")
-        except Exception as e: logger.error(f"خطأ زر المالك: {e}")
+        elif data.startswith('no_'):
+            await query.edit_message_caption(caption="❌ تم رفض الإيصال.")
 
 async def handle_receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.photo:
         user = update.effective_user
-        await update.message.reply_text("⏳ جاري إرسال الإيصال للمالك...")
+        await update.message.reply_text("⏳ جاري المراجعة من قبل الإدارة...")
         
-        # --- بناء لوحة الأزرار الكبيرة للمالك ---
+        # بناء لوحة أزرار المالك الكبيرة
         kb = []
-        # أزرار الريال
-        for i in range(0, len(PRICES_SAR), 2):
-            row = [InlineKeyboardButton(f"🇸🇦 +{PRICES_SAR[i]}", callback_data=f"ok_sr_{PRICES_SAR[i]}_{user.id}")]
-            if i+1 < len(PRICES_SAR): row.append(InlineKeyboardButton(f"🇸🇦 +{PRICES_SAR[i+1]}", callback_data=f"ok_sr_{PRICES_SAR[i+1]}_{user.id}"))
-            kb.append(row)
-        # أزرار الدولار
-        for i in range(0, len(PRICES_USD), 2):
-            row = [InlineKeyboardButton(f"💵 +{PRICES_USD[i]}$", callback_data=f"ok_us_{PRICES_USD[i]}_{user.id}")]
-            if i+1 < len(PRICES_USD): row.append(InlineKeyboardButton(f"💵 +{PRICES_USD[i+1]}$", callback_data=f"ok_us_{PRICES_USD[i+1]}_{user.id}"))
-            kb.append(row)
-        
-        kb.append([InlineKeyboardButton("❌ رفض الإيصال", callback_data=f"no_{user.id}")])
+        for p in PRICES_SAR: kb.append([InlineKeyboardButton(f"🇸🇦 إضافة {p} ريال", callback_data=f"ok_sr_{p}_{user.id}")])
+        for p in PRICES_USD: kb.append([InlineKeyboardButton(f"💵 إضافة {p} $", callback_data=f"ok_us_{p}_{user.id}")])
+        kb.append([InlineKeyboardButton("❌ رفض", callback_data=f"no_{user.id}")])
         
         for admin in ADMINS_LIST:
             await context.bot.send_photo(chat_id=admin, photo=update.message.photo[-1].file_id, 
-                                       caption=f"🔔 إيصال جديد من: {user.first_name}\nID: `{user.id}`\n\nاختر المبلغ للإضافة:", 
+                                       caption=f"🔔 إيصال من: {user.first_name}\nID: `{user.id}`", 
                                        reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
 
+# --- 🚀 6. تشغيل المحرك ---
 if __name__ == '__main__':
-    keep_alive()
+    keep_alive() # تشغيل السيرفر الوهمي أولاً
     app = Application.builder().token(TOKEN).concurrent_updates(True).build()
+    
     app.add_handler(CommandHandler('start', start))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.PHOTO, handle_receipt))
     
-    logger.info("🚀 الدراجون يعمل بأقصى طاقة...")
-    # أضفنا drop_pending_updates=True لضمان عدم حدوث Conflict
-    app.run_polling(drop_pending_updates=True, close_loop=False)
+    logger.info("🚀 إمبراطورية الدراجون تعمل الآن...")
+    app.run_polling(drop_pending_updates=True)
