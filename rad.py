@@ -40,12 +40,15 @@ client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
 db = client['investment_platform']
 users_col = db['users']
 
+# --- 🗄️ الاتصال بالمونغو بصيغة متوافقة مع Render ---
 try:
-    client.admin.command('ping')
-    logger.info("✅ تم الاتصال بالمونغو بنجاح")
+    # أضفنا سطر يمنع مشاكل الـ DNS في السيرفرات السحابية
+    client = MongoClient(MONGO_URI, connectTimeoutMS=30000, socketTimeoutMS=None, connect=False, maxPoolSize=1)
+    db = client['investment_platform']
+    users_col = db['users']
+    logger.info("✅ تم تجهيز قاعدة البيانات")
 except Exception as e:
-    logger.error(f"❌ فشل الاتصال بالمونغو: {e}")
-
+    logger.error(f"❌ خطأ في إعدادات المونغو: {e}")
 # --- 🛠️ 4. الدوال الأساسية ---
 def get_user_data(uid):
     uid_int = int(uid)
