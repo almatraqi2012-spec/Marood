@@ -6,7 +6,7 @@ from pymongo import MongoClient
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 
-# --- 🌐 1. سيرفر Flask للبقاء حياً ---
+# --- 🌐 1. سيرفر Flask للبقاء حياً --
 flask_app = Flask('')
 @flask_app.route('/')
 def home(): return "🚀 إمبراطورية الدراجون في أوج قوتها!"
