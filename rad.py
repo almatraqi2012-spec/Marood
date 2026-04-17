@@ -36,26 +36,35 @@ PRICES_USD = ["300", "400", "500", "600", "800", "1000", "2000", "3000", "5000",
 # ===============================================================
 
 # --- 🗄️ الاتصال بـ MongoDB ---
+# --- 🗄️ تعريف قاعدة البيانات (خارج الـ try لضمان وجودها) ---
+db = None
+users_col = None
+
 try:
-    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000, connectTimeoutMS=5000)
     db = client['investment_platform']
     users_col = db['users']
-    logger.info("✅ تم الاتصال بالمونغو")
+    # اختبار الاتصال
+    client.admin.command('ping')
+    logger.info("✅ تم الاتصال بسحابة MongoDB بنجاح")
 except Exception as e:
-    logger.error(f"❌ خطأ مونغو: {e}")
-
+    logger.error(f"❌ فشل الاتصال بالمونغو: {e}")
 # --- 🛠️ الدوال البرمجية ---
 def get_user_data(uid):
-    user = users_col.find_one({"uid": uid})
-    if not user:
-        user = {"uid": uid, "bal_sar": 0.0, "bal_usd": 0.0}
-        users_col.insert_one(user)
-    return user
-
-def update_balance(uid, curr, amt):
-    field = "bal_sar" if curr == "sr" else "bal_usd"
-    users_col.update_one({"uid": uid}, {"$inc": {field: float(amt)}})
-
+    # التأكد أن المتغير موجود قبل استخدامه
+    if users_col is None:
+        logger.error("⚠️ قاعدة البيانات غير متصلة حالياً!")
+        return {"uid": uid, "bal_sar": 0.0, "bal_usd": 0.0}
+    
+    try:
+        user = users_col.find_one({"uid": uid})
+        if not user:
+            user = {"uid": uid, "bal_sar": 0.0, "bal_usd": 0.0}
+            users_col.insert_one(user)
+        return user
+    except Exception as e:
+        logger.error(f"❌ خطأ في الاستعلام: {e}")
+        return {"uid": uid, "bal_sar": 0.0, "bal_usd": 0.0}
 # --- 🏠 الواجهات ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
