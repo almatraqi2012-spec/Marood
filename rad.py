@@ -134,28 +134,43 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(f"✅ تم اختيار {amt}\nحول إلى:\n`{addr}`\n\n📸 أرسل الإيصال هنا.", parse_mode='Markdown')
 
     # --- 🛠️ معالجة أوامر المديرين (تأكيد/رفض) ---
+    # --- 🛠️ معالجة أوامر المديرين (تأكيد/رفض) ---
     elif data.startswith('ok_') or data.startswith('no_'):
+        # تأكد أن الـ ID الخاص بك موجود في القائمة ADMINS_LIST = [6016547718]
         if uid not in ADMINS_LIST:
             await query.answer("❌ عذراً، هذا الزر للمديرين فقط!", show_alert=True)
             return
 
-        if data.startswith('ok_'):
-            _, c, a, target = data.split('_')
-            update_balance(int(target), c, float(a))
-            await query.answer(f"✅ تمت إضافة {a} {c}", show_alert=True)
-            # مسح الرسالة عند جميع المديرين لعدم التكرار
-            await query.edit_message_caption(caption=f"✅ تم تأكيد الإيداع بمبلغ {a} {c} بواسطة أحد المديرين.")
-            try:
-                await context.bot.send_message(chat_id=int(target), text=f"🎉 تم إيداع `{a}` {c} في محفظتك بنجاح!")
-            except: pass
-        
-        elif data.startswith('no_'):
-            t = data.split('_')[1]
-            await query.answer("❌ تم الرفض")
-            await query.edit_message_caption(caption="❌ تم رفض هذا الإيصال من قبل أحد المديرين.")
-            try:
-                await context.bot.send_message(chat_id=int(t), text="❌ تم رفض الإيصال من قبل الإدارة.")
-            except: pass
+        try:
+            if data.startswith('ok_'):
+                # تفكيك البيانات: ok_العملة_المبلغ_المستخدم
+                parts = data.split('_')
+                if len(parts) == 4:
+                    _, c, a, target = parts
+                    update_balance(int(target), c, float(a))
+                    
+                    await query.answer(f"✅ تمت إضافة {a} {c}", show_alert=True)
+                    await query.edit_message_caption(caption=f"✅ تم تأكيد الإيداع بمبلغ {a} {c} بواسطة المدير.")
+                    
+                    # إرسال رسالة للمشترك بشرى سارة
+                    try:
+                        await context.bot.send_message(chat_id=int(target), text=f"🎉 بشرى سارة! تم إيداع `{a}` {c} في محفظتك بنجاح.\nاستثماراتك بدأت الآن! 🚀", parse_mode='Markdown')
+                    except Exception as e:
+                        logger.error(f"⚠️ فشل إرسال رسالة للمشترك: {e}")
+                else:
+                    await query.answer("⚠️ خطأ في تنسيق البيانات")
+
+            elif data.startswith('no_'):
+                t = data.split('_')[1]
+                await query.answer("❌ تم الرفض")
+                await query.edit_message_caption(caption="❌ تم رفض هذا الإيصال من قبل المدير.")
+                try:
+                    await context.bot.send_message(chat_id=int(t), text="❌ نعتذر، تم رفض الإيصال من قبل الإدارة. يرجى التأكد من البيانات والمحاولة مرة أخرى.")
+                except: pass
+                
+        except Exception as e:
+            logger.error(f"💥 خطأ أثناء معالجة زر الإدارة: {e}")
+            await query.answer("⚠️ حدث خطأ تقني أثناء معالجة الطلب")
 
 async def handle_receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.photo:
