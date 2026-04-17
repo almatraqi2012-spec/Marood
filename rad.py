@@ -140,4 +140,5 @@ if __name__ == '__main__':
     app.add_handler(MessageHandler(filters.PHOTO, handle_receipt))
     
     logger.info("🚀 الدراجون يعمل بأقصى طاقة...")
-    app.run_polling(drop_pending_updates=True)
+    # أضفنا drop_pending_updates=True لضمان عدم حدوث Conflict
+    app.run_polling(drop_pending_updates=True, close_loop=False)
