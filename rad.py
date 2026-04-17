@@ -1,14 +1,15 @@
 from flask import Flask
 from threading import Thread
 import logging
+import sys
 from pymongo import MongoClient
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 
-# --- 🌐 1. سيرفر Flask ---
+# --- 🌐 1. سيرفر Flask للبقاء حياً ---
 flask_app = Flask('')
 @flask_app.route('/')
-def home(): return "إمبراطورية الدراجون تعمل!"
+def home(): return "🚀 إمبراطورية الدراجون في أوج قوتها!"
 
 def run_flask():
     flask_app.run(host='0.0.0.0', port=8080)
@@ -18,41 +19,43 @@ def keep_alive():
     t.daemon = True
     t.start()
 
-# --- ⚙️ 2. الإعدادات ---
+# --- ⚙️ 2. إعدادات السجلات ---
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# ضع التوكن الجديد هنا
+# --- ⚙️ الإعدادات الأساسية ---
 TOKEN ='7885071515:AAEOsslD3q5Xu-RYDT-E1sLAFggv4TS46bw' 
 ADMIN_USERNAME = 'HCICICVICIF9'
 ADMINS_LIST = [6016547718] 
 
-MONGO_URI = "mongodb+srv://Abduh:5D7NJi%25aAAkdRB@cluster0.p8iub.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+# 💡 حل مشكلة DNS: تم تحويل الرابط لصيغة الاتصال المباشر بالعقد (Direct Connection)
+MONGO_URI = "mongodb://Abduh:5D7NJi%25aAAkdRB@cluster0-shard-00-00.p8iub.mongodb.net:27017,cluster0-shard-00-01.p8iub.mongodb.net:27017,cluster0-shard-00-02.p8iub.mongodb.net:27017/investment_platform?ssl=true&replicaSet=atlas-p8iub-shard-0&authSource=admin&retryWrites=true&w=majority"
+
 BANK_ACCOUNT = "SA0000000000000000000000"
 CRYPTO_WALLET = "TLtLuhkU2kkkR1Wz1TtrBTpoNRTNviYpsA"
 
 PRICES_SAR = ["1000", "1500", "2000", "3000", "5000", "7000", "8000", "10000", "15000", "20000", "30000", "50000"]
 PRICES_USD = ["300", "400", "500", "600", "800", "1000", "2000", "3000", "5000", "20000", "30000"]
 
-# --- 🗄️ 3. الاتصال بالمونغو (تعريف عام) ---
-# قمنا بتعريفها خارج الـ try لضمان عدم ظهور NameError
-client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
-db = client['investment_platform']
-users_col = db['users']
+# --- 🗄️ 3. الاتصال بالقاعدة (تعريف خارجي لمنع NameError) ---
+users_col = None
 
-# --- 🗄️ الاتصال بالمونغو بصيغة متوافقة مع Render ---
 try:
-    # أضفنا سطر يمنع مشاكل الـ DNS في السيرفرات السحابية
-    client = MongoClient(MONGO_URI, connectTimeoutMS=30000, socketTimeoutMS=None, connect=False, maxPoolSize=1)
+    # إعدادات اتصال قوية ضد انقطاع الشبكة في Render
+    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=10000, connectTimeoutMS=10000)
     db = client['investment_platform']
     users_col = db['users']
-    logger.info("✅ تم تجهيز قاعدة البيانات")
+    # اختبار الاتصال
+    client.admin.command('ping')
+    logger.info("✅ تم اختراق جدار DNS والاتصال بالمونغو بنجاح!")
 except Exception as e:
-    logger.error(f"❌ خطأ في إعدادات المونغو: {e}")
+    logger.error(f"❌ خطأ في الاتصال بالقاعدة: {e}")
+    # إذا فشل الاتصال، لا نغلق البرنامج بل نحاول لاحقاً
+
 # --- 🛠️ 4. الدوال الأساسية ---
 def get_user_data(uid):
+    if users_col is None: return {"uid": int(uid), "bal_sar": 0.0, "bal_usd": 0.0}
     uid_int = int(uid)
-    # التأكد من وجود السجل أو إنشائه
     user = users_col.find_one({"uid": uid_int})
     if not user:
         user = {"uid": uid_int, "bal_sar": 0.0, "bal_usd": 0.0}
@@ -60,6 +63,7 @@ def get_user_data(uid):
     return user
 
 def update_balance(uid, curr, amt):
+    if users_col is None: return False
     try:
         uid_int = int(uid)
         field = "bal_sar" if curr == "sr" else "bal_usd"
@@ -69,10 +73,10 @@ def update_balance(uid, curr, amt):
         logger.error(f"❌ خطأ تحديث الرصيد: {e}")
         return False
 
-# --- 🏠 5. الأوامر ---
+# --- 🏠 5. الأوامر البرمجية ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    get_user_data(user.id) # الآن ستعمل بدون NameError
+    get_user_data(user.id)
     kb = [
         [InlineKeyboardButton("🇸🇦 ريال سعودي", callback_data='c_sr'), InlineKeyboardButton("🇺🇸 دولار أمريكي", callback_data='c_us')],
         [InlineKeyboardButton("💰 محفظتي", callback_data='wallet'), InlineKeyboardButton("📤 سحب الأرباح", callback_data='withdraw')],
@@ -98,7 +102,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         curr = 'sr' if data == 'c_sr' else 'us'
         prices = PRICES_SAR if curr == 'sr' else PRICES_USD
         btns = [[InlineKeyboardButton(f"{p} {('ر.س' if curr=='sr' else '$')}", callback_data=f"sel_{curr}_{p}") for p in prices[i:i+2]] for i in range(0, len(prices), 2)]
-        btns.append([InlineKeyboardButton("🔙", callback_data='main')])
+        btns.append([InlineKeyboardButton("🔙 رجوع", callback_data='main')])
         await query.edit_message_text("🏦 اختر مبلغ الاستثمار:", reply_markup=InlineKeyboardMarkup(btns))
 
     elif data.startswith('sel_'):
@@ -112,11 +116,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if data.startswith('ok_') and len(parts) == 4:
             _, curr, amt, target_id = parts
             if update_balance(target_id, curr, amt):
-                await query.edit_message_caption(caption=f"✅ تم إضافة {amt} {curr} للمستثمر.")
+                await query.edit_message_caption(caption=f"✅ تم تأكيد إيداع {amt} {curr} للمستثمر.")
                 try: await context.bot.send_message(chat_id=int(target_id), text=f"🎉 تم إضافة `{amt}` {curr} لمحفظتك!")
                 except: pass
         elif data.startswith('no_'):
-            await query.edit_message_caption(caption="❌ تم الرفض.")
+            await query.edit_message_caption(caption="❌ تم رفض الإيصال.")
 
 async def handle_receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.photo:
@@ -125,17 +129,21 @@ async def handle_receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
         kb = []
         for p in PRICES_SAR: kb.append([InlineKeyboardButton(f"🇸🇦 +{p}", callback_data=f"ok_sr_{p}_{user.id}")])
         for p in PRICES_USD: kb.append([InlineKeyboardButton(f"💵 +{p}$", callback_data=f"ok_us_{p}_{user.id}")])
-        kb.append([InlineKeyboardButton("❌ رفض الإيصال", callback_data=f"no_{user.id}")])
+        kb.append([InlineKeyboardButton("❌ رفض", callback_data=f"no_{user.id}")])
         
         for admin in ADMINS_LIST:
             await context.bot.send_photo(chat_id=admin, photo=update.message.photo[-1].file_id, 
                                        caption=f"🔔 إيصال من: {user.first_name}\nID: `{user.id}`", 
                                        reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
 
+# --- 🚀 6. تشغيل المحرك النهائي ---
 if __name__ == '__main__':
     keep_alive()
+    # استخدام drop_pending_updates=True لقتل أي تصادم (Conflict) قديم
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler('start', start))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.PHOTO, handle_receipt))
+    
+    logger.info("🐉 الدراجون مستعد للتحليق...")
     app.run_polling(drop_pending_updates=True)
