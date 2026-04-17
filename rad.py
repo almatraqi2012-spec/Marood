@@ -22,7 +22,7 @@ def keep_alive():
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-TOKEN ='7885071515:AAEzZkVzA4iHcvn5GG9AXCsJTS2gIa-9UTc'
+TOKEN ='7885071515:AAEOsslD3q5Xu-RYDT-E1sLAFggv4TS46bw'
 ADMIN_USERNAME = 'HCICICVICIF9'
 ADMINS_LIST = [6016547718] 
 
