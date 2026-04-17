@@ -12,7 +12,7 @@ flask_app = Flask('')
 def home(): return "🚀 إمبراطورية الدراجون تعمل بنجاح!"
 
 def run_flask():
-    flask_app.run(host='0.0.0.0', port=8080)
+    flask_app.run(host='0.0.0.0', port=10000)
 
 def keep_alive():
     t = Thread(target=run_flask)
