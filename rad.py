@@ -24,7 +24,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 # --- ⚙️ الإعدادات الأساسية ---
-TOKEN ='7885071515:AAEOsslD3q5Xu-RYDT-E1sLAFggv4TS46bw' 
+TOKEN ='8731999916:AAHDjo1noyGIbUH699aTjNns9kCjP8P9SHc' 
 ADMIN_USERNAME = 'HCICICVICIF9'
 ADMINS_LIST = [6016547718] 
 
