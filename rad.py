@@ -167,7 +167,7 @@ async def handle_receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 parse_mode='Markdown'
             )
 
-# --- 🚀 6. تشغيل المحرك النهائي ---
+# --- 🚀 6. تشغيل المحرك النهائي --
 if __name__ == '__main__':
     keep_alive()
     
