@@ -139,9 +139,17 @@ async def handle_receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                        reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
 
 if __name__ == '__main__':
-    keep_alive()
-    app = Application.builder().token(TOKEN).concurrent_updates(True).build()
-    app.add_handler(CommandHandler('start', start))
-    app.add_handler(CallbackQueryHandler(button_handler))
-    app.add_handler(MessageHandler(filters.PHOTO, handle_receipt))
-    app.run_polling(drop_pending_updates=True)
+    try:
+        keep_alive()
+        # إضافة إعدادات إضافية لضمان عدم حدوث Conflict
+        app = Application.builder().token(TOKEN).concurrent_updates(True).build()
+        
+        app.add_handler(CommandHandler('start', start))
+        app.add_handler(CallbackQueryHandler(button_handler))
+        app.add_handler(MessageHandler(filters.PHOTO, handle_receipt))
+        
+        logger.info("🚀 الدراجون انطلق الآن..")
+        # سطر التشغيل الذهبي:
+        app.run_polling(drop_pending_updates=True, stop_signals=None)
+    except Exception as e:
+        logger.error(f"💥 خطأ كارثي أثناء التشغيل: {e}")
