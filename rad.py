@@ -21,7 +21,7 @@ def run_flask():
 def keep_alive():
     t = Thread(target=run_flask); t.daemon = True; t.start()
 
-# --- 🔑 2. الثوابت (التوكن والقاعدة) ---
+# --- 🔑 2. الثوابت (التوكن والقاعدة) --
 TOKEN ='8731999916:AAHDjo1noyGIbUH699aTjNns9kCjP8P9SHc' 
 ADMINS_LIST = [6016547718] # الآيدي الخاص بك كمالك
 SUPPORT_LINK = "https://t.me/HCICICVICIF9"
