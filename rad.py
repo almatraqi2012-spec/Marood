@@ -134,10 +134,26 @@ async def handle_receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except: pass
 
 if __name__ == '__main__':
+    # 1. تشغيل السيرفر في الخلفية
     Thread(target=run_server, daemon=True).start()
+    
+    # 2. بناء التطبيق
     app = Application.builder().token(TOKEN).concurrent_updates(True).build()
+    
+    # 3. --- الترتيب هو السر ---
+    # يجب وضع CommandHandler في أول القائمة دائماً
     app.add_handler(CommandHandler('start', start))
+    
+    # ثم معالج الأزرار
     app.add_handler(CallbackQueryHandler(button_handler))
+    
+    # ثم معالج الصور (هذا الذي كان يسبب الانسداد)
     app.add_handler(MessageHandler(filters.PHOTO, handle_receipt))
-    # أهم سطر لضمان استجابة Start ومسح التعليق
+    
+    # حل الطوارئ: إذا أرسل المستخدم كلمة "ستارت" أو "start" كرسالة وليس كأمر
+    app.add_handler(MessageHandler(filters.TEXT & (filters.Regex(r'(?i)^/start$') | filters.Regex(r'^start$')), start))
+
+    logger.info("🚀 تم إصلاح مسار دالة ستارت.. الانطلاق الآن")
+    
+    # 4. تنظيف الرسائل القديمة العالقة لضمان الاستجابة الفورية
     app.run_polling(drop_pending_updates=True)
