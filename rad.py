@@ -61,7 +61,12 @@ def update_balance(uid, curr, amt):
 # --- 🏠 واجهة المستخدم ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    get_user_data(user.id)
+    # محاولة جلب البيانات، وإذا فشل المونغو يكمل البوت ولا يتوقف
+    try:
+        get_user_data(user.id)
+    except Exception as e:
+        logger.error(f"⚠️ خطأ في المونغو ولكن سنستمر: {e}")
+
     keyboard = [
         [InlineKeyboardButton("🇸🇦 استثمار (بالريال السعودي)", callback_data='c_sr'),
          InlineKeyboardButton("🇺🇸 استثمار (بالدولار)", callback_data='c_us')],
@@ -69,15 +74,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("📤 طلب سحب الأرباح", callback_data='withdraw')],
         [InlineKeyboardButton("💬 التواصل مع الإدارة", url=f"https://t.me/{ADMIN_USERNAME}")]
     ]
-    text = (f"🏦 **المنصة العالمية للاستثمار**\n\n"
-            f"مرحباً بك سيد {user.first_name}\n"
-            f"يرجى اختيار القسم المطلوب للبدء:")
 
+    text = f"🏦 **المنصة العالمية للاستثمار**\n\nمرحباً بك سيد {user.first_name}\nاختر القسم المطلوب للبدء:"
+
+    # التأكد من الرد
     if update.message:
         await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
-    else:
+    elif update.callback_query:
         await update.callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
-
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     data = query.data
