@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 flask_app = Flask('')
 @flask_app.route('/')
-def home(): return "💎 Sahm Holding System: Stable"
+def home(): return "💎 Sahm Holding: Final Stable"
 
 def run_flask():
     flask_app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 10000)))
@@ -27,10 +27,6 @@ SUPPORT = "https://t.me/HCICICVICIF9"
 BANK_INFO = "🏦 **بيانات الحساب البنكي:**\n\nالراجحي: `123456789012345`\nالاسم: شركة سهم القابضة"
 USDT_INFO = "🔗 **عنوان محفظة USDT (TRC20):**\n\n`TLtLuhkU2kkkR1Wz1TtrBTpoNRTNviYpsA`"
 
-# مبالغ الاستثمار الكاملة
-SAR_V = ["1000", "2000", "5000", "10000", "20000", "50000"]
-USD_V = ["300", "500", "1000", "2000", "5000", "10000"]
-
 # الربط مع قاعدة البيانات
 u_s, p_s = urllib.parse.quote_plus('Abduh'), urllib.parse.quote_plus('A11223344@5566')
 MONGO_URI = f"mongodb+srv://{u_s}:{p_s}@cluster0.0a4wefx.mongodb.net/DragonFinal?retryWrites=true&w=majority"
@@ -45,10 +41,8 @@ except:
 def get_u(uid):
     d = {"uid": int(uid), "sar": 0.0, "usd": 0.0, "t": 0}
     if users_col is None: return d
-    try:
-        res = users_col.find_one({"uid": int(uid)})
-        return res if res else d
-    except: return d
+    res = users_col.find_one({"uid": int(uid)})
+    return res if res else d
 
 # --- 🏠 الواجهات ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -65,7 +59,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def cb_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query; uid = q.from_user.id; data = q.data
-    await q.answer()
+    await q.answer() # فك التعليق فوراً
     u = get_u(uid)
 
     if data == 'main': await start(update, context)
@@ -83,43 +77,42 @@ async def cb_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif data in ['d_sr', 'd_us']:
         curr = 'sr' if data == 'd_sr' else 'us'
-        vals = SAR_V if curr == 'sr' else USD_V
-        btns = [[InlineKeyboardButton(f"{v} {'﷼' if curr=='sr' else '$'}", callback_data=f"s_{curr}_{v}") for v in vals[i:i+2]] for i in range(0, 6, 2)]
+        vals = ["1000", "5000", "10000", "50000"] if curr == 'sr' else ["300", "1000", "5000", "10000"]
+        btns = [[InlineKeyboardButton(f"{v} {'﷼' if curr=='sr' else '$'}", callback_data=f"s_{curr}_{v}") for v in vals[i:i+2]] for i in range(0, 4, 2)]
         btns.append([InlineKeyboardButton("🔙 رجوع", callback_data='main')])
         await q.edit_message_text("📊 **اختر مبلغ الاستثمار:**", reply_markup=InlineKeyboardMarkup(btns))
 
     elif data.startswith('s_'):
         _, curr, amt = data.split('_')
         info = BANK_INFO if curr == 'sr' else USDT_INFO
-        await q.edit_message_text(f"✨ **إيداع بمبلغ {amt}:**\n\n{info}\n\n📸 **أرسل صورة الإيصال الآن ليتم التحقق وتفعيل حسابك.**", parse_mode='Markdown')
+        await q.edit_message_text(f"✨ **إيداع بمبلغ {amt}:**\n\n{info}\n\n📸 **أرسل صورة الإيصال الآن.**", parse_mode='Markdown')
 
-    # --- 🛠️ نظام الاعتماد (Admin Logic) ---
-    elif data.startswith(('v_', 'x_')):
+    # --- 🛠️ نظام الاعتماد المختصر (Admin Logic) ---
+    elif data.startswith(('v', 'x')):
         if uid not in ADMINS: return
-        p = data.split('_') # v_العملة_المبلغ_المعرف
+        p = data.split('|') # v|العملة|المبلغ|المعرف
         act, cur, amt, tid = p[0], p[1], p[2], p[3]
         
         if act == 'v':
             key = "sar" if cur == "sr" else "usd"
             if users_col:
-                # تحديث قاعدة البيانات فوراً
                 users_col.update_one({"uid": int(tid)}, {"$inc": {key: float(amt), "t": 1}}, upsert=True)
-            await q.edit_message_caption(f"✅ تم اعتماد شحن {amt} بنجاح!")
-            try: await context.bot.send_message(tid, f"🎊 مبروك! تم شحن `{amt}` {'﷼' if key=='sar' else '$'} في محفظتك بنجاح.")
+            await q.edit_message_caption(f"✅ تم اعتماد {amt} {key.upper()}")
+            try: await context.bot.send_message(int(tid), f"🎊 مبروك! تم شحن `{amt}` {'﷼' if key=='sar' else '$'} في محفظتك.")
             except: pass
         else:
-            await q.edit_message_caption("❌ تم رفض الإيصال.")
+            await q.edit_message_caption("❌ تم الرفض.")
 
 async def photo_h(update: Update, context: ContextTypes.DEFAULT_TYPE):
     u = update.effective_user
     await update.message.reply_text("⏳ تم استلام إيصالك.. جاري المراجعة.")
-    # أزرار الإدارة (تم تقصير الكود لضمان الاستجابة وضمان وصول الرصيد)
-    def mk_btn(cur, vals):
-        return [InlineKeyboardButton(f"{'﷼' if cur=='sr' else '$'} {v}", callback_data=f"v_{cur}_{v}_{u.id}") for v in vals]
     
-    kb = [mk_btn('sr', ["1000", "5000", "10000"]), mk_btn('sr', ["20000", "50000"]),
-          mk_btn('us', ["300", "1000", "5000"]), mk_btn('us', ["10000"]),
-          [InlineKeyboardButton("🚫 رفض الإيصال", callback_data=f"x_0_0_{u.id}")]]
+    # استخدام '|' كفاصل بدلاً من '_' لتوفير المساحة وضمان الاستجابة
+    def b(c, v): return InlineKeyboardButton(f"{'﷼' if c=='sr' else '$'} {v}", callback_data=f"v|{c}|{v}|{u.id}")
+
+    kb = [[b('sr', '1000'), b('sr', '5000')], [b('sr', '10000'), b('sr', '50000')],
+          [b('us', '300'), b('us', '1000')], [b('us', '5000'), b('us', '10000')],
+          [InlineKeyboardButton("🚫 رفض الإيصال", callback_data=f"x|0|0|{u.id}")]]
     
     for adm in ADMINS:
         await context.bot.send_photo(adm, update.message.photo[-1].file_id, 
