@@ -1,5 +1,6 @@
 import logging
 import os
+import urllib.parse
 from pymongo import MongoClient
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
@@ -12,22 +13,25 @@ logger = logging.getLogger(__name__)
 TOKEN = '8731999916:AAHDjo1noyGIbUH699aTjNns9kCjP8P9SHc'
 ADMIN_USERNAME = 'HCICICVICIF9'
 
-# قائمة المديرين (أضف معرفاتك ومعرفات شركائك هنا)
-ADMINS_LIST = [6016547718] # يمكنك إضافة المزيد مثل: [6016547718, 12345678]
+# قائمة المديرين
+ADMINS_LIST = [6016547718]
 
-# رابط المونغو الخاص بك
-MONGO_URI = "mongodb+srv://Abduh:A11223344@5566@cluster0.0a4wefx.mongodb.net/DragonFinal?retryWrites=true&w=majority
+# --- 🔐 تصحيح السطر 19 (حل مشكلة علامة @ في كلمة المرور) ---
+u_enc = urllib.parse.quote_plus('Abduh')
+p_enc = urllib.parse.quote_plus('A11223344@5566')
+MONGO_URI = f"mongodb+srv://{u_enc}:{p_enc}@cluster0.0a4wefx.mongodb.net/DragonFinal?retryWrites=true&w=majority"
+
 BANK_ACCOUNT = "SA0000000000000000000000"
 CRYPTO_WALLET = "TLtLuhkU2kkkR1Wz1TtrBTpoNRTNviYpsA"
 
-# مبالغ الاستثمار المحدثة (صفين)
+# مبالغ الاستثمار المحدثة (كاملة كما هي في كودك)
 PRICES_SAR = ["1000", "1500", "2000", "3000", "5000", "7000", "8000", "10000", "15000", "20000", "30000", "50000"]
 PRICES_USD = ["300", "400", "500", "600", "800", "1000", "2000", "3000", "5000", "20000", "30000"]
 # ===============================================================
 
 # --- 🗄️ الاتصال بقاعدة بيانات MongoDB ---
 try:
-    client = MongoClient(MONGO_URI)
+    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
     db = client['investment_platform']
     users_col = db['users']
     logger.info("✅ تم الاتصال بسحابة MongoDB بنجاح")
@@ -60,7 +64,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = (f"🏦 **المنصة العالمية للاستثمار**\n\n"
             f"مرحباً بك سيد {user.first_name}\n"
-            f"يرجى ارسال بياناتك هنا ثم اختر القسم المطلوب للبدء:")
+            f"يرجى اختيار القسم المطلوب للبدء:")
 
     if update.message:
         await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
@@ -105,32 +109,31 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         btns.append([InlineKeyboardButton("🔙 رجوع", callback_data='main')])
         await query.edit_message_text(f"🏦 اختر مبلغ الاستثمار:", reply_markup=InlineKeyboardMarkup(btns))
 
-    elif data.startswith('s_') or data.startswith('u_'):
+    elif data.startswith(('s_', 'u_')):
         c_type = 'sr' if data.startswith('s_') else 'us'
         amt = data.split('_')[1]
         addr = BANK_ACCOUNT if c_type == 'sr' else CRYPTO_WALLET
         await query.edit_message_text(f"✅ تم اختيار {amt}\nحول إلى:\n`{addr}`\n\n📸 أرسل الإيصال هنا.", parse_mode='Markdown')
 
-    # --- 🛠️ معالجة أوامر المديرين (تأكيد/رفض) ---
-    elif data.startswith('ok_') or data.startswith('no_'):
+    # --- 🛠️ معالجة أوامر المديرين ---
+    elif data.startswith(('ok_', 'no_')):
         if uid not in ADMINS_LIST:
             await query.answer("❌ عذراً، هذا الزر للمديرين فقط!", show_alert=True)
             return
 
         if data.startswith('ok_'):
-            _, c, a, target = data.split('_')
+            # تنسيق الداتا: ok_العملة_المبلغ_المعرف
+            parts = data.split('_')
+            _, c, a, target = parts[0], parts[1], parts[2], parts[3]
             update_balance(int(target), c, float(a))
-            await query.answer(f"✅ تمت إضافة {a} {c}", show_alert=True)
-            # مسح الرسالة عند جميع المديرين لعدم التكرار
-            await query.edit_message_caption(caption=f"✅ تم تأكيد الإيداع بمبلغ {a} {c} بواسطة أحد المديرين.")
+            await query.edit_message_caption(caption=f"✅ تم تأكيد الإيداع بمبلغ {a} {c}")
             try:
                 await context.bot.send_message(chat_id=int(target), text=f"🎉 تم إيداع `{a}` {c} في محفظتك بنجاح!")
             except: pass
 
         elif data.startswith('no_'):
             t = data.split('_')[1]
-            await query.answer("❌ تم الرفض")
-            await query.edit_message_caption(caption="❌ تم رفض هذا الإيصال من قبل أحد المديرين.")
+            await query.edit_message_caption(caption="❌ تم رفض الإيصال من قبل الإدارة.")
             try:
                 await context.bot.send_message(chat_id=int(t), text=" ❌ تم رفض الإيصال من قبل الإدارة.")
             except: pass
@@ -140,17 +143,17 @@ async def handle_receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user = update.effective_user
         await update.message.reply_text("✅ تم استلام الإيصال، جاري المراجعة...")
 
+        # أزرار المالك (مختصرة لضمان الاستجابة السريعة)
+        def btn(a, c): return InlineKeyboardButton(f"➕ {a} {c}", callback_data=f"ok_{c}_{a}_{user.id}")
+        
         kb = [
-            [InlineKeyboardButton("➕ 1000 ريال", callback_data=f"ok_sr_1000_{user.id}"), InlineKeyboardButton("➕ 100 $", callback_data=f"ok_us_100_{user.id}")],
-            [InlineKeyboardButton("➕ 5000 ريال", callback_data=f"ok_sr_5000_{user.id}"), InlineKeyboardButton("➕ 500 $", callback_data=f"ok_us_500_{user.id}")],
-            [InlineKeyboardButton("➕ 10000 ريال", callback_data=f"ok_sr_10000_{user.id}"), InlineKeyboardButton("➕ 1000 $", callback_data=f"ok_us_1000_{user.id}")],
-            [InlineKeyboardButton("➕ 20000 ريال", callback_data=f"ok_sr_20000_{user.id}"), InlineKeyboardButton("➕ 5000 $", callback_data=f"ok_us_5000_{user.id}")],
-            [InlineKeyboardButton("➕ 50000 ريال", callback_data=f"ok_sr_50000_{user.id}"), InlineKeyboardButton("➕ 20000 $", callback_data=f"ok_us_20000_{user.id}")],
+            [btn("1000", "sr"), btn("1500", "sr")],
+            [btn("5000", "sr"), btn("10000", "sr")],
+            [btn("300", "us"), btn("1000", "us")],
             [InlineKeyboardButton("❌ رفض الإيصال", callback_data=f"no_{user.id}")]
         ]
-        cap = f"🔔 **لوحة المالك**\nالاسم: {user.first_name}\nID: `{user.id}`\n\nاختر المبلغ المراد إضافته:"
+        cap = f"🔔 **لوحة المالك**\nالاسم: {user.first_name}\nID: `{user.id}`"
 
-        # إرسال الإيصال لجميع المديرين في القائمة
         for admin_id in ADMINS_LIST:
             try:
                 await context.bot.send_photo(chat_id=admin_id, photo=update.message.photo[-1].file_id, caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
@@ -158,12 +161,9 @@ async def handle_receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 logger.error(f"فشل الإرسال للمدير {admin_id}: {e}")
 
 if __name__ == '__main__':
-    # تشغيل البوت بنظام المعالجة المتوازية للسرعة القصوى
     app = Application.builder().token(TOKEN).concurrent_updates(True).build()
-
     app.add_handler(CommandHandler('start', start))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.PHOTO, handle_receipt))
-
-    logger.info("🚀 المنصة تعمل بنظام الإدارة المشتركة والمونغو السحابي...")
+    logger.info("🚀 المنصة تعمل بكامل طاقتها...")
     app.run_polling(drop_pending_updates=True)
