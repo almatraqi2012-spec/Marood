@@ -25,7 +25,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 # ================= [ ⚙️ إعدادات الإمبراطور ] =================
-TOKEN = '8731999916:AAHDjo1noyGIbUH699aTjNns9kCjP8P9SHc' # تأكد من استخدام التوكن الجديد دائماً
+TOKEN = '8731999916:AAHdeigVSmil8KD6GeA7OazVZkjVxhq9QJU' # تأكد من استخدام التوكن الجديد دائماً
 ADMIN_USERNAME = 'HCICICVICIF9'
 ADMINS_LIST = [6016547718]
 
