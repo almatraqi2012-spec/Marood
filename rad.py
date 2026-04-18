@@ -173,4 +173,4 @@ if __name__ == '__main__':
     app.add_handler(MessageHandler(filters.PHOTO, handle_receipt))
 
     logger.info("🚀 المنصة تعمل بنظام الإدارة والمونغو المحدث...")
-    app.run_polling(drop_pending_updates=True)
+    app.run_polling(drop_pending_updates=True, close_loop=True, stop_signals=None)
