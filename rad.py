@@ -10,35 +10,40 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 # ================= [ ⚙️ إعدادات الإمبراطور ] =================
-TOKEN = '8731999916:AAHdeigVSmil8KD6GeA7OazVZkjVxhq9QJU'
+TOKEN = '8731999916:AAHDjo1noyGIbUH699aTjNns9kCjP8P9SHc'
 ADMIN_USERNAME = 'HCICICVICIF9'
 
 # قائمة المديرين
 ADMINS_LIST = [6016547718]
 
-# --- 🔐 تصحيح السطر 19 (حل مشكلة علامة @ في كلمة المرور) ---
+# --- 🔐 تعديل المونقو (كلمة المرور الجديدة + مصدر المصادقة) ---
 u_enc = urllib.parse.quote_plus('Abduh')
-p_enc = urllib.parse.quote_plus('A11223344@5566')
-MONGO_URI = f"mongodb+srv://{u_enc}:{p_enc}@cluster0.0a4wefx.mongodb.net/DragonFinal?retryWrites=true&w=majority"
+p_enc = urllib.parse.quote_plus('Abduh2026')
+# تم إضافة authSource=admin لضمان عمل صلاحيات atlasAdmin
+MONGO_URI = f"mongodb+srv://{u_enc}:{p_enc}@cluster0.0a4wefx.mongodb.net/DragonFinal?authSource=admin&retryWrites=true&w=majority"
 
 BANK_ACCOUNT = "SA0000000000000000000000"
 CRYPTO_WALLET = "TLtLuhkU2kkkR1Wz1TtrBTpoNRTNviYpsA"
 
-# مبالغ الاستثمار المحدثة (كاملة كما هي في كودك)
+# مبالغ الاستثمار الكاملة (170 سطر يعتمد على هذه القوائم)
 PRICES_SAR = ["1000", "1500", "2000", "3000", "5000", "7000", "8000", "10000", "15000", "20000", "30000", "50000"]
 PRICES_USD = ["300", "400", "500", "600", "800", "1000", "2000", "3000", "5000", "20000", "30000"]
 # ===============================================================
 
 # --- 🗄️ الاتصال بقاعدة بيانات MongoDB ---
 try:
+    # استخدام مهلة زمنية قصيرة للكشف عن الأخطاء فوراً
     client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
     db = client['investment_platform']
     users_col = db['users']
+    # اختبار الاتصال فعلياً
+    client.admin.command('ping')
     logger.info("✅ تم الاتصال بسحابة MongoDB بنجاح")
 except Exception as e:
     logger.error(f"❌ فشل الاتصال بالمونغو: {e}")
 
 def get_user_data(uid):
+    if users_col is None: return {"uid": uid, "bal_sar": 0.0, "bal_usd": 0.0}
     user = users_col.find_one({"uid": uid})
     if not user:
         user = {"uid": uid, "bal_sar": 0.0, "bal_usd": 0.0}
@@ -46,6 +51,7 @@ def get_user_data(uid):
     return user
 
 def update_balance(uid, curr, amt):
+    if users_col is None: return
     field = "bal_sar" if curr == "sr" else "bal_usd"
     users_col.update_one({"uid": uid}, {"$inc": {field: float(amt)}})
 
@@ -122,7 +128,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         if data.startswith('ok_'):
-            # تنسيق الداتا: ok_العملة_المبلغ_المعرف
             parts = data.split('_')
             _, c, a, target = parts[0], parts[1], parts[2], parts[3]
             update_balance(int(target), c, float(a))
@@ -143,7 +148,6 @@ async def handle_receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user = update.effective_user
         await update.message.reply_text("✅ تم استلام الإيصال، جاري المراجعة...")
 
-        # أزرار المالك (مختصرة لضمان الاستجابة السريعة)
         def btn(a, c): return InlineKeyboardButton(f"➕ {a} {c}", callback_data=f"ok_{c}_{a}_{user.id}")
         
         kb = [
@@ -161,9 +165,12 @@ async def handle_receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 logger.error(f"فشل الإرسال للمدير {admin_id}: {e}")
 
 if __name__ == '__main__':
+    # تشغيل البوت بنظام المعالجة المتوازية للسرعة القصوى
     app = Application.builder().token(TOKEN).concurrent_updates(True).build()
+
     app.add_handler(CommandHandler('start', start))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.PHOTO, handle_receipt))
-    logger.info("🚀 المنصة تعمل بكامل طاقتها...")
+
+    logger.info("🚀 المنصة تعمل بنظام الإدارة والمونغو المحدث...")
     app.run_polling(drop_pending_updates=True)
