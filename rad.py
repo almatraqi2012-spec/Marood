@@ -21,9 +21,10 @@ TOKEN = '8731999916:AAHdeigVSmil8KD6GeA7OazVZkjVxhq9QJU'
 ADMIN_USERNAME = 'HCICICVICIF9'
 ADMINS_LIST = [6016547718]
 
-# 🏦 عناوين الدفع
-BANK_ACCOUNT = "يرجى التواصل مع الادارة للحصول على حسابنا البنكي"
-CRYPTO_WALLET = "TLtLuhkU2kkkR1Wz1TtrBTpoNRTNviYpsA"
+# 🏦 الحل الذكي: قراءة الحسابات من إعدادات Render (Environment Variables) لسهولة التغيير
+# إذا لم تضعها في Render، سيستخدم القيم الافتراضية المكتوبة هنا
+BANK_ACCOUNT = os.environ.get('BANK_ACCOUNT', "يرجى التواصل مع الادارة للحصول على حسابنا البنكي")
+CRYPTO_WALLET = os.environ.get('CRYPTO_WALLET', "TLtLuhkU2kkkR1Wz1TtrBTpoNRTNviYpsA")
 
 # ===============================================================
 
@@ -109,7 +110,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif data in ['c_sr', 'c_us']:
         curr = 'sr' if data == 'c_sr' else 'us'
-        prices = ["1000", "2000"," 3000", "4000", "5000", "8000", "10000", "15000", "20000", "30000", "40000", "50000"] if curr == 'sr' else ["300", "400", "500", "800", "1000", "2000", "3000", "4000", "5000", "8000", "10000", "15000", "20000", "25000", "30000", "40000", "50000"]
+        prices = ["1000", "2000", "3000", "4000", "5000", "8000", "10000", "15000", "20000", "30000", "40000", "50000"] if curr == 'sr' else ["300", "400", "500", "800", "1000", "2000", "3000", "4000", "5000", "8000", "10000", "15000", "20000", "25000", "30000", "40000", "50000"]
         btns = [[InlineKeyboardButton(f"{p} {('﷼' if curr=='sr' else '$')}", callback_data=f"{curr[0]}_{p}") for p in prices[i:i+2]] for i in range(0, len(prices), 2)]
         btns.append([InlineKeyboardButton("🔙 رجوع", callback_data='main')])
         await query.edit_message_text("🏦 **يرجى اختيار مبلغ الاستثمار:**", reply_markup=InlineKeyboardMarkup(btns), parse_mode='Markdown')
@@ -123,8 +124,13 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if uid not in ADMINS_LIST: return
         _, cur, val, tid = data.split('_')
         update_balance(tid, cur, val)
-        await query.answer(f"✅ تم إضافة {val} بنجاح", show_alert=False)
-        try: await context.bot.send_message(int(tid), f"🎉 **أبشر.. تم إيداع `{val}` {('﷼' if cur=='sr' else '$')} في محفظتك!**", parse_mode='Markdown')
+        
+        # إشعار نجاح للمالك يظهر كرسالة منبثقة (Alert)
+        await query.answer(f"✅ تم تنفيذ الإيداع بنجاح لـ {val}", show_alert=True)
+        
+        try: 
+            # إشعار المشترك
+            await context.bot.send_message(int(tid), f"🎉 **أبشر.. تم إيداع `{val}` {('﷼' if cur=='sr' else '$')} في محفظتك!**", parse_mode='Markdown')
         except: pass
 
     elif data == 'delete_msg':
@@ -135,9 +141,25 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     await update.message.reply_text("✅ **استلمنا الإيصال، جاري المراجعة...**", parse_mode='Markdown')
     def b(v, c): return InlineKeyboardButton(f"➕ {v} {('ر' if c=='sr' else '$')}", callback_data=f"ok_{c}_{v}_{user.id}")
-    kb = [[b("1000", "sr"), b("5000", "sr"), b("10000", "sr"), b("15000", "sr"), b("20000", "sr")], [b("100", "us"), b("500", "us"), b("1000", "us"), b("1500", "us"), b("2000", "us"), b("5000","us")], [InlineKeyboardButton("❌ إغلاق", callback_data='delete_msg')]]
+    
+    # تنسيق أزرار المالك بشكل منظم
+    kb = [
+        [b("1000", "sr"), b("5000", "sr"), b("10000", "sr")],
+        [b("15000", "sr"), b("20000", "sr"), b("50000", "sr")],
+        [b("100", "us"), b("500", "us"), b("1000", "us")],
+        [b("1500", "us"), b("2000", "us"), b("5000", "us")],
+        [InlineKeyboardButton("❌ إغلاق", callback_data='delete_msg')]
+    ]
+    
     for adm in ADMINS_LIST:
-        try: await context.bot.send_photo(adm, update.message.photo[-1].file_id, caption=f"🔔 إيداع من: {user.first_name}\nID: `{user.id}`", reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+        try: 
+            await context.bot.send_photo(
+                adm, 
+                update.message.photo[-1].file_id, 
+                caption=f"🔔 إيداع من: {user.first_name}\nID: `{user.id}`\n\n(الأزرار ثابتة للإيداع المتكرر)", 
+                reply_markup=InlineKeyboardMarkup(kb), 
+                parse_mode='Markdown'
+            )
         except: pass
 
 if __name__ == '__main__':
