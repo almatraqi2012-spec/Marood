@@ -135,7 +135,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     await update.message.reply_text("✅ **استلمنا الإيصال، جاري المراجعة...**", parse_mode='Markdown')
     def b(v, c): return InlineKeyboardButton(f"➕ {v} {('ر' if c=='sr' else '$')}", callback_data=f"ok_{c}_{v}_{user.id}")
-    kb = [[b("1000", "sr"), b("5000", "sr"), b("10000", "sr")], [b("100", "us"), b("500", "us"), b("1000", "us")], [InlineKeyboardButton("❌ إغلاق", callback_data='delete_msg')]]
+    kb = [[b("1000", "sr"), b("5000", "sr"), b("10000", "sr"), b("15000", "sr"), b("20000", "sr")], [b("100", "us"), b("500", "us"), b("1000", "us"), b("1500", "us"), b("2000", "us"), b("5000","us")], [InlineKeyboardButton("❌ إغلاق", callback_data='delete_msg')]]
     for adm in ADMINS_LIST:
         try: await context.bot.send_photo(adm, update.message.photo[-1].file_id, caption=f"🔔 إيداع من: {user.first_name}\nID: `{user.id}`", reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
         except: pass
