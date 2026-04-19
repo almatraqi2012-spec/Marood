@@ -1,4 +1,4 @@
-import logging, os, sqlite3
+حimport logging, os, sqlite3
 from flask import Flask
 from threading import Thread
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -22,7 +22,7 @@ ADMIN_USERNAME = 'HCICICVICIF9'
 ADMINS_LIST = [6016547718]
 
 # 🏦 عناوين الدفع
-BANK_ACCOUNT = "SA0000000000000000000000"
+BANK_ACCOUNT = "يرجى التواصل مع الادارة للحصول على حسابنا البنكي"
 CRYPTO_WALLET = "TLtLuhkU2kkkR1Wz1TtrBTpoNRTNviYpsA"
 
 # ===============================================================
@@ -109,7 +109,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif data in ['c_sr', 'c_us']:
         curr = 'sr' if data == 'c_sr' else 'us'
-        prices = ["1000", "5000", "10000", "20000", "50000"] if curr == 'sr' else ["300", "500", "1000", "5000", "10000"]
+        prices = ["1000", "2000"," 3000", "4000", "5000", "8000", "10000", "15000", "20000", "30000", "40000", "50000"] if curr == 'sr' else ["300", "400", "500", "800", "1000", "2000", "3000", "4000", "5000", "8000", "10000", "15000", "20000", "25000", "30000", "40000", "50000"]
         btns = [[InlineKeyboardButton(f"{p} {('﷼' if curr=='sr' else '$')}", callback_data=f"{curr[0]}_{p}") for p in prices[i:i+2]] for i in range(0, len(prices), 2)]
         btns.append([InlineKeyboardButton("🔙 رجوع", callback_data='main')])
         await query.edit_message_text("🏦 **يرجى اختيار مبلغ الاستثمار:**", reply_markup=InlineKeyboardMarkup(btns), parse_mode='Markdown')
