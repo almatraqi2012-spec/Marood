@@ -1,4 +1,4 @@
-حimport logging, os, sqlite3
+import logging, os, sqlite3
 from flask import Flask
 from threading import Thread
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
