@@ -96,18 +96,34 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     elif data == 'withdraw':
         u = get_user_data(uid)
-        sar_fee = u['bal_sar'] * 0.20
-        usd_fee = u['bal_usd'] * 0.20
-        msg = (f"📤 **إجراءات سحب الأرباح:**\n\n"
-               f"💰 **رصيدك الحالي:**\n"
-               f"🇸🇦: `{u['bal_sar']:,}` ﷼\n"
-               f"🇺🇸: `{u['bal_usd']:,}` $\n\n"
-               f"⚠️ **الرسوم المتوجبة لفتح بوابة السحب (20%):**\n"
-               f"🇸🇦 المطلوب سداده: **`{sar_fee:,}` ريال**\n"
-               f"🇺🇸 المطلوب سداده: **`{usd_fee:,}` دولار**\n\n"
-               f"يرجى دفع الرسوم للإدارة ليتم تفعيل السحب الفوري.")
-        await query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 رجوع", callback_data='main')]]), parse_mode='Markdown')
+        # إذا كان الرصيد صفر في العملتين
+        if u['bal_sar'] <= 0 and u['bal_usd'] <= 0:
+            msg = "⚠️ رصيدك الحالي هو **0**.\nلا يمكنك السحب حالياً، ولكن يمكنك اختيار وسيلة السحب المفضلة لديك لمعرفة المتطلبات:"
+        else:
+            msg = (f"📊 **رصيدك المتاح للسحب:**\n\n"
+                   f"🇸🇦 ريال: `{u['bal_sar']:,}`\n"
+                   f"🇺🇸 دولار: `{u['bal_usd']:,}`\n\n"
+                   f"يرجى اختيار طريقة السحب:")
 
+        kb = [
+            [InlineKeyboardButton("💵 سحب بالدولار (USDT)", callback_data='wd_usd')],
+            [InlineKeyboardButton("🇸🇦 سحب بالريال السعودي", callback_data='wd_sar')],
+            [InlineKeyboardButton("🔙 رجوع", callback_data='main')]
+        ]
+        await query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+
+    elif data == 'wd_usd':
+        u = get_user_data(uid)
+        if u['bal_usd'] <= 0:
+            await query.edit_message_text("⚠️ رصيدك بالدولار هو **0**.\nيرجى إرسال عنوان محفظتك **TRC20 USDT** لحفظها في النظام:", 
+                                         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 رجوع", callback_data='withdraw')]]), parse_mode='Markdown')
+        else:
+            await query.edit_message_text("🎯 يرجى إرسال عنوان محفظتك **TRC20 USDT** مباشرة هنا في الدردشة:", parse_mode='Markdown')
+        context.user_data['waiting_for'] = 'usd_address'
+
+    elif data == 'wd_sar':
+        await query.edit_message_text("📝 يرجى إرسال بياناتك البنكية بالتنسيق التالي:\n\n(اسم البنك - الاسم الكامل - رقم الحساب - الآيبان - رقم الجوال)", parse_mode='Markdown')
+        context.user_data['waiting_for'] = 'sar_bank_details'
     elif data in ['c_sr', 'c_us']:
         curr = 'sr' if data == 'c_sr' else 'us'
         prices = ["1000", "2000", "3000", "4000", "5000", "8000", "10000", "15000", "20000", "30000", "40000", "50000"] if curr == 'sr' else ["300", "400", "500", "800", "1000", "2000", "3000", "4000", "5000", "8000", "10000", "15000", "20000", "25000", "30000", "40000", "50000"]
