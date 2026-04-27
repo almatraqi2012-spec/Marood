@@ -93,8 +93,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         u = get_user_data(uid)
         await query.edit_message_text(f"📊 **محفظتك المالية:**\n\n🇸🇦 ريال: `{u['bal_sar']:,}`\n🇺🇸 دولار: `{u['bal_usd']:,}`", 
                                      reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 رجوع", callback_data='main')]]), parse_mode='Markdown')
-    
- elif data == 'withdraw':
+   
+    elif data == 'withdraw':
         u = get_user_data(uid)
         msg = (f"📤 **إجراءات سحب الأرباح**\n\n"
                f"💰 **رصيدك الحالي:**\n"
