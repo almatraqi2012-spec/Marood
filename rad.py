@@ -146,14 +146,14 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             'qa': ("قطر 🇶🇦", ["500", "1000", "1500", "2000", "3000", "5000", "7000", "10000", "15000"], "ريال"),
             'om': ("عمان 🇴🇲", ["500", "1000", "1500", "2000", "3000", "5000", "7000", "10000", "15000"], "ريال")
         }
-        
         name, prices, currency = offers[country]
-        # تنظيم الأزرار بحيث يظهر كل مبلغين في سطر
-        btns = [[InlineKeyboardButton(f"{p} {currency}", callback_data=f"invest_now") for p in prices[i:i+2]] for i in range(0, len(prices), 2)]
+        
+        # التعديل الجوهري: ربط العملات بـ s_ (للعملات الورقية) و u_ (للدولار)
+        # إذا كانت العملة درهم/دينار/ريال ستعامل معاملة s_ (السعودي) لتظهر بيانات البنك
+        btns = [[InlineKeyboardButton(f"{p} {currency}", callback_data=f"s_{p}") for p in prices[i:i+2]] for i in range(0, len(prices), 2)]
         btns.append([InlineKeyboardButton("🔙 رجوع", callback_data='gulf_offers')])
         
-        await query.edit_message_text(f"✨ **عروض استثمار {name}:**\n\nاختر الباقة المناسبة لك للاطلاع على تفاصيل الأرباح:", reply_markup=InlineKeyboardMarkup(btns), parse_mode='Markdown')
-
+        await query.edit_message_text(f"✨ **عروض استثمار {name}:**\n\nاختر الباقة المناسبة لك:", reply_markup=InlineKeyboardMarkup(btns), parse_mode='Markdown')
     elif data == 'invest_now':
         msg = (f"🚀 **بدء الاستثمار**\n\n"
                f"للإيداع والحصول على حساباتنا البنكية الرسمية، يرجى التواصل مع الإدارة:\n\n"
