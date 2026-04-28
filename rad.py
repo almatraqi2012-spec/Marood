@@ -64,7 +64,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🇸🇦 استثمار (بالريال السعودي)", callback_data='c_sr'),
          InlineKeyboardButton("🇺🇸 استثمار (بالدولار)", callback_data='c_us')],
         [InlineKeyboardButton("🌍 الاستثمار بعملات أخرى", callback_data='other_currency')],
-        [InlineKeyboardButton("🇰🇼 عروض الخليج والدول العربية 🌍", callback_data='gulf_offers')]
+        [InlineKeyboardButton("🇰🇼 عروض الخليج والدول العربية 🌍", callback_data='gulf_offers')],
         [InlineKeyboardButton("💰 محفظتي المالية", callback_data='wallet')],
         [InlineKeyboardButton("📤 طلب سحب الأرباح", callback_data='withdraw')],
         [InlineKeyboardButton("💬 التواصل مع الإدارة", url=f"https://t.me/{ADMIN_USERNAME}")]
