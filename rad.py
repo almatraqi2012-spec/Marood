@@ -4,7 +4,7 @@ from threading import Thread
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 
-# --- 🌐 خادم الويب (لضمان استقرار السيرفر على Render) ---
+# --- 🌐 خادم الويب (لضمان استقرار السيرفر على Render) --
 app_web = Flask('')
 @app_web.route('/')
 def home(): return "🚀 Sahm Platform - High Performance Version"
