@@ -63,7 +63,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     kb = [
         [InlineKeyboardButton("🇸🇦 استثمار (بالريال السعودي)", callback_data='c_sr'),
          InlineKeyboardButton("🇺🇸 استثمار (بالدولار)", callback_data='c_us')],
-        [InlineKeyboardButton("🌍 الاستثمار بعملات أخرى", callback_data='other_currency')],
+        [InlineKeyboardButton("🌍 الاستثمار بعملات أخرى", callback_data='other_currency'), [InlineKeyboardButton("🇰🇼 عروض الخليج والدول العربية 🌍", callback_data='gulf_offers')]],
         [InlineKeyboardButton("💰 محفظتي المالية", callback_data='wallet')],
         [InlineKeyboardButton("📤 طلب سحب الأرباح", callback_data='withdraw')],
         [InlineKeyboardButton("💬 التواصل مع الإدارة", url=f"https://t.me/{ADMIN_USERNAME}")]
@@ -127,6 +127,37 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         btns.append([InlineKeyboardButton("🔙 رجوع", callback_data='main')])
         await query.edit_message_text("🏦 **يرجى اختيار مبلغ الاستثمار:**", reply_markup=InlineKeyboardMarkup(btns), parse_mode='Markdown')
 
+    elif data == 'gulf_offers':
+        kb = [
+            [InlineKeyboardButton("🇦🇪 عروض الإمارات", callback_data='off_ae'),
+             InlineKeyboardButton("🇰🇼 عروض الكويت", callback_data='off_kw')],
+            [InlineKeyboardButton("🇶🇦 عروض قطر", callback_data='off_qa'),
+             InlineKeyboardButton("🇴🇲 عروض عمان", callback_data='off_om')],
+            [InlineKeyboardButton("🔙 رجوع", callback_data='main')]
+        ]
+        await query.edit_message_text("🌍 **يرجى اختيار الدولة لعرض باقات الاستثمار المتاحة:**", reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+
+    elif data.startswith('off_'):
+        country = data.split('_')[1]
+        offers = {
+            'ae': ("الإمارات 🇦🇪", ["500", "1000", "1500", "3000", "5000", "7000", "10000", "15000"], "درهم"),
+            'kw': ("الكويت 🇰🇼", ["50", "100", "180", "250", "410", "575", "822", "1230"], "دينار"),
+            'qa': ("قطر 🇶🇦", ["500", "1000", "1500", "2000", "3000", "5000", "7000", "10000", "15000"], "ريال"),
+            'om': ("عمان 🇴🇲", ["500", "1000", "1500", "2000", "3000", "5000", "7000", "10000", "15000"], "ريال")
+        }
+        
+        name, prices, currency = offers[country]
+        # تنظيم الأزرار بحيث يظهر كل مبلغين في سطر
+        btns = [[InlineKeyboardButton(f"{p} {currency}", callback_data=f"invest_now") for p in prices[i:i+2]] for i in range(0, len(prices), 2)]
+        btns.append([InlineKeyboardButton("🔙 رجوع", callback_data='gulf_offers')])
+        
+        await query.edit_message_text(f"✨ **عروض استثمار {name}:**\n\nاختر الباقة المناسبة لك للاطلاع على تفاصيل الأرباح:", reply_markup=InlineKeyboardMarkup(btns), parse_mode='Markdown')
+
+    elif data == 'invest_now':
+        msg = (f"🚀 **بدء الاستثمار**\n\n"
+               f"للإيداع والحصول على حساباتنا البنكية الرسمية، يرجى التواصل مع الإدارة:\n\n"
+               f"👉 [اضغط هنا للتواصل مع الإدارة](https://T.me/BIG_INVESTORS1)")
+        await query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 رجوع", callback_data='main')]]), parse_mode='Markdown', disable_web_page_preview=True)
     elif data.startswith(('s_', 'u_')):
         amt = data.split('_')[1]
         addr = BANK_ACCOUNT if data.startswith('s_') else CRYPTO_WALLET
