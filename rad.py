@@ -192,6 +192,8 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [b("15000", "sr"), b("20000", "sr"), b("50000", "sr")],
         [b("100", "us"), b("500", "us"), b("1000", "us")],
         [b("1500", "us"), b("2000", "us"), b("5000", "us")],
+        [b("50", "kw"), b("100", "kw"), b("250", "kw")],
+        [b("500", "ae"), b("1000", "ae"), b("5000", "ae")],
         [InlineKeyboardButton("❌ إغلاق", callback_data='delete_msg')]
     ]
     
