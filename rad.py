@@ -313,7 +313,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 text=f"🎉 **أبشر.. تم إيداع `{val}` {symbol} في محفظتك بنجاح!**\n\nتأكد من رصيدك الآن عبر 'محفظتي'.",
                 parse_mode='Markdown'
             )
-            await query.message.delete() # حذف رسالة الإيصال بعد الاعتماد[cite: 1]
+            await query.edit_message_caption(caption=f"✅ تم اعتماد الإيداع بنجاح\n💰 المبلغ: {val} {symbol}", parse_mode='Markdown')
+
+2. ضمان التراك
         except Exception as e:
             await query.answer(f"❌ خطأ: {e}", show_alert=True)
             # إرسال رسالة للمشترك ليفرح بإضافة الرصيد
@@ -349,7 +351,6 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [b("100", "$", "us"), b("500", "$", "us"), b("1000", "$", "us")],
         [b("500", "درهم", "ae"), b("1000", "درهم", "ae"), b("5000", "درهم", "ae")],
         [b("50", "د.ك", "kw"), b("100", "د.ك", "kw"), b("250", "د.ك", "kw")],
-        [InlineKeyboardButton("❌ إغلاق", callback_data='delete_msg')]
     ]
 
     for adm in ADMINS_LIST:
@@ -403,7 +404,7 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # إرسال الرد للمشترك
         await update.message.reply_text(response, parse_mode='Markdown')
 
-        # تنبيه الإدارة بالطلب الجديد مع كامل التفاصيل[cite: 1]
+        # تنبيه الإدارة بالطلب الجديد مع كامل التفاصيل
         for adm in ADMINS_LIST:
             try:
                 await context.bot.send_message(
