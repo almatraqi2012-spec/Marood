@@ -313,9 +313,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 text=f"🎉 **أبشر.. تم إيداع `{val}` {symbol} في محفظتك بنجاح!**\n\nتأكد من رصيدك الآن عبر 'محفظتي'.",
                 parse_mode='Markdown'
             )
-            await query.edit_message_caption(caption=f"✅ تم اعتماد الإيداع بنجاح\n💰 المبلغ: {val} {symbol}", parse_mode='Markdown')
+            await query.answer(f"✅ تم إضافة {val} {symbol} لرصيد المشترك بنجاح. الأزرار لا تزال مفعلة.", show_alert=True)
 
-2. ضمان التراك
         except Exception as e:
             await query.answer(f"❌ خطأ: {e}", show_alert=True)
             # إرسال رسالة للمشترك ليفرح بإضافة الرصيد
