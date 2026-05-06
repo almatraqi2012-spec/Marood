@@ -25,7 +25,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 # ================= [ ⚙️ إعدادات الإمبراطور ] ================
-TOKEN = 'BOT_TOKEN'
+TOKEN = os.environ.get('BOT_TOKEN')
 ADMIN_USERNAME = 'HCICICVICIF9'
 ADMINS_LIST = [6016547718, 6965265928]
 
