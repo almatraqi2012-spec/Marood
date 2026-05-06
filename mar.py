@@ -24,7 +24,7 @@ def keep_alive():
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# ================= [ ⚙️ إعدادات الإمبراطور ] =================
+# ================= [ ⚙️ إعدادات الإمبراطور ] ================
 TOKEN = 'BOT_TOKEN'
 ADMIN_USERNAME = 'HCICICVICIF9'
 ADMINS_LIST = [6016547718, 6965265928]
