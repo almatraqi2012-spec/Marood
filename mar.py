@@ -4,7 +4,7 @@ from threading import Thread
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 from telegram.request import HTTPXRequest
-# --- 🌐 خادم الويب (لضمان استقرار السيرفر 24/7) ---
+# --- 🌐 خادم الويب (لضمان استقرار السيرفر 24/7) --
 
 app = Flask('')
 
