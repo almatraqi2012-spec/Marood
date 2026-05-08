@@ -23,7 +23,7 @@ jobs:
         run: |
           pip install python-telegram-bot flask pymongo # أضف مكاتبك هنا
 
-      - name: Run Dragon Bot
+      - name: Run marood Bot
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }} # سحب التوكن بأمان
           MONGO_URL: ${{ secrets.MONGO_URL }} # سحب قاعدة البيانات بأمان
