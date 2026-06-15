@@ -21,10 +21,8 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          pip install python-telegram-bot flask pymongo # أضف مكاتبك هنا
+          pip install --upgrade pip
+          pip install pyTelegramBotAPI flask requests numpy ccxt pandas supabase
 
       - name: Run marood Bot
-        env:
-          BOT_TOKEN: ${{ secrets.BOT_TOKEN }} # سحب التوكن بأمان
-          MONGO_URL: ${{ secrets.MONGO_URL }} # سحب قاعدة البيانات بأمان
-        run: python mar.py # اسم ملفك المشفر
+        run: python mar.py # تأكد من كتابة اسم ملفك المشفر الصحيح هنا
