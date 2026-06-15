@@ -1,28 +1,6 @@
-name: marood Auto Run
-
-on:
-  push:
-    branches: [ main ] # يشتغل تلقائياً عند رفع كود جديد
-  schedule:
-    - cron: '0 */6 * * *' # يعيد تشغيل نفسه كل 6 ساعات لضمان الاستمرارية
-  workflow_dispatch: # يسمح لك بتشغيله يدوياً وقتما تشاء
-
-jobs:
-  run-bot:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10' # نسخة مستقرة للعمل على سيرفرات جيت هب
-
-      - name: Install Dependencies
-        run: |
-          pip install --upgrade pip
-          pip install pyTelegramBotAPI flask requests numpy ccxt pandas supabase
-
-      - name: Run marood Bot
-        run: python mar.py # تأكد من كتابة اسم ملفك المشفر الصحيح هنا
+- name: Run marood Bot
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: python tal22_encrypted.py # تشغيل الملف المشفر الجديد
